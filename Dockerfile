@@ -7,7 +7,7 @@ ENV APACHE_PORT 80
 ENV SSH_PORT 22
 ENV MODE_HOST 0
 
-RUN apt-get update && apt-get install -y wget openssh-server supervisor mysql-client
+RUN apt-get update && apt-get install -y wget openssh-server supervisor mysql-client nodejs
 
 RUN echo "root:${SHELL_ROOT_PASSWORD}" | chpasswd && \
   sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
@@ -30,6 +30,20 @@ RUN /root/install_docker.sh -s 7;exit 0
 RUN /root/install_docker.sh -s 10;exit 0
 RUN systemctl disable apache2;exit 0
 RUN systemctl disable sshd;exit 0
+
+# For Openzwave
+
+RUN git clone https://github.com/jeedom/plugin-openzwave.git /root/plugin-openzwave
+RUN chmod +x /root/plugin-openzwave/resources/install_apt.sh; \
+    cd /root/plugin-openzwave/resources; \
+    /root/plugin-openzwave/resources/install_apt.sh; \
+    rm -rf /root/plugin-openzwave;exit 0
+
+# For Xiaomi
+ADD install/xiaomi_install.sh /root/xiaomi_install.sh
+RUN chmod +x /root/xiaomi_install.sh;/root/xiaomi_install.sh; \
+    /root/xiaomi_install.sh; \
+    rm /root/xiaomi_install.sh;exit 0
 
 ADD install/OS_specific/Docker/init.sh /root/init.sh
 RUN chmod +x /root/init.sh
