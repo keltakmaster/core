@@ -36,7 +36,7 @@ if (isset($argv)) {
 }
 
 try {
-	require_once dirname(__FILE__) . '/../core/php/core.inc.php';
+	require_once __DIR__ . '/../core/php/core.inc.php';
 	echo "***************Start of Jeedom backup at " . date('Y-m-d H:i:s') . "***************\n";
 
 	try {
@@ -55,8 +55,16 @@ try {
 		echo "NOK\n";
 	}
 
+	try {
+		echo 'Vérifiez les droits sur les fichiers...';
+		jeedom::cleanFileSytemRight();
+		echo "OK\n";
+	} catch (Exception $e) {
+		echo "NOK\n";
+	}
+
 	global $CONFIG;
-	$jeedom_dir = realpath(dirname(__FILE__) . '/..');
+	$jeedom_dir = realpath(__DIR__ . '/..');
 	$backup_dir = calculPath(config::byKey('backup::path'));
 	if (!file_exists($backup_dir)) {
 		mkdir($backup_dir, 0770, true);
@@ -89,7 +97,11 @@ try {
 	}
 
 	echo "Vérifie la base de données...";
-	system("mysqlcheck --host=" . $CONFIG['db']['host'] . " --port=" . $CONFIG['db']['port'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . ' --auto-repair --silent');
+	if(isset($CONFIG['db']['unix_socket'])) {
+		system("mysqlcheck --socket=" . $CONFIG['db']['unix_socket'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . ' --auto-repair --silent');
+	} else {
+		system("mysqlcheck --host=" . $CONFIG['db']['host'] . " --port=" . $CONFIG['db']['port'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . ' --auto-repair --silent');
+	}
 	echo "OK" . "\n";
 
 	echo 'Sauvegarde la base de données...';
@@ -102,7 +114,11 @@ try {
 	if (file_exists($jeedom_dir . "/DB_backup.sql")) {
 		throw new Exception('Impossible de supprimer la sauvegarde de la base de données. Vérifiez les droits');
 	}
-	system("mysqldump --host=" . $CONFIG['db']['host'] . " --port=" . $CONFIG['db']['port'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . "  > " . $jeedom_dir . "/DB_backup.sql", $rc);
+	if(isset($CONFIG['db']['unix_socket'])) {
+		system("mysqldump --socket=" . $CONFIG['db']['unix_socket'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . "  > " . $jeedom_dir . "/DB_backup.sql", $rc);
+	} else {
+		system("mysqldump --host=" . $CONFIG['db']['host'] . " --port=" . $CONFIG['db']['port'] . " --user=" . $CONFIG['db']['username'] . " --password='" . $CONFIG['db']['password'] . "' " . $CONFIG['db']['dbname'] . "  > " . $jeedom_dir . "/DB_backup.sql", $rc);
+	}
 	if ($rc != 0) {
 		throw new Exception('Echec durant la sauvegarde de la base de données. Vérifiez que mysqldump est présent. Code retourné : ' . $rc);
 	}
@@ -217,11 +233,7 @@ try {
 			$class = 'repo_' . $key;
 			echo 'Send backup ' . $value['name'] . '...';
 			try {
-				if ($class == 'repo_market') {
-					repo_market::sendBackupCloud($backup_dir . '/' . $backup_name);
-				} else {
-					$class::sendBackup($backup_dir . '/' . $backup_name);
-				}
+				$class::backup_send($backup_dir . '/' . $backup_name);
 			} catch (Exception $e) {
 				log::add('backup', 'error', $e->getMessage());
 				echo '/!\ ' . br2nl($e->getMessage()) . ' /!\\';
@@ -231,6 +243,14 @@ try {
 	}
 	echo "Nom de la sauvegarde : " . $backup_dir . '/' . $backup_name . "\n";
 	
+	try {
+		echo 'Vérifiez les droits sur les fichiers...';
+		jeedom::cleanFileSytemRight();
+		echo "OK\n";
+	} catch (Exception $e) {
+		echo "NOK\n";
+	}
+
 	try {
 		echo 'Vérifiez les droits sur les fichiers...';
 		jeedom::cleanFileSytemRight();

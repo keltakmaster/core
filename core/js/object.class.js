@@ -108,6 +108,7 @@ jeedom.object.toHtml = function(_params) {
         version: _params.version || 'dashboard',
         category :  _params.category || 'all',
         summary :  _params.summary || '',
+        tag :  _params.tag || 'all',
     };
     $.ajax(paramsAJAX);
 };
@@ -288,6 +289,43 @@ jeedom.object.summaryUpdate = function(_params) {
     paramsAJAX.data = {
         action: 'getSummaryHtml',
         ids: json_encode(sends),
+    };
+    $.ajax(paramsAJAX);
+};
+
+jeedom.object.getImgPath = function(_params){
+    jeedom.object.byId({
+        id : _params.id,
+        global: false,
+        async : false,
+        error : function(data){
+            return;
+        },
+        success : function(data){
+            if(!isset(data.img)){
+                return '';
+            }
+           _params.success(data.img);
+        }
+    });
+}
+
+
+jeedom.object.removeImage = function (_params) {
+    var paramsRequired = ['id'];
+    var paramsSpecifics = {};
+    try {
+        jeedom.private.checkParamsRequired(_params || {}, paramsRequired);
+    } catch (e) {
+        (_params.error || paramsSpecifics.error || jeedom.private.default_params.error)(e);
+        return;
+    }
+    var params = $.extend({}, jeedom.private.default_params, paramsSpecifics, _params || {});
+    var paramsAJAX = jeedom.private.getParamsAJAX(params);
+    paramsAJAX.url = 'core/ajax/object.ajax.php';
+    paramsAJAX.data = {
+        action: 'removeImage',
+        id: _params.id
     };
     $.ajax(paramsAJAX);
 };

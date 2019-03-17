@@ -1,27 +1,27 @@
 <?php
 
 /* This file is part of Jeedom.
- *
- * Jeedom is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Jeedom is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
- */
+*
+* Jeedom is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* Jeedom is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../../core/php/core.inc.php';
+require_once __DIR__ . '/../../core/php/core.inc.php';
 
 class cmd {
 	/*     * *************************Attributs****************************** */
-
+	
 	protected $id;
 	protected $logicalId;
 	protected $generic_type;
@@ -45,10 +45,11 @@ class cmd {
 	protected $_eqLogic = null;
 	protected $_needRefreshWidget;
 	protected $_needRefreshAlert;
+	protected $_changed = false;
 	private static $_templateArray = array();
-
+	
 	/*     * ***********************Méthodes statiques*************************** */
-
+	
 	private static function cast($_inputs, $_eqLogic = null) {
 		if (is_object($_inputs) && class_exists($_inputs->getEqType() . 'Cmd')) {
 			if ($_eqLogic !== null) {
@@ -68,7 +69,7 @@ class cmd {
 		}
 		return $_inputs;
 	}
-
+	
 	public static function byId($_id) {
 		if ($_id == '') {
 			return;
@@ -81,19 +82,27 @@ class cmd {
 		WHERE id=:id';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
+	public static function byIds($_ids) {
+		if (!is_array($_ids) || count($_ids) == 0) {
+			return;
+		}
+		$in = trim(preg_replace('/[, ]{2,}/m',',',implode(',', $_ids)), ',');
+		if (!empty($in)) {
+			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
+			FROM cmd
+			WHERE id IN (' . $in . ')';
+			return self::cast(DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
+		}
+	}
+	
 	public static function all() {
 		$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
 		FROM cmd
 		ORDER BY id';
-		$results = DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL);
-		$return = array();
-		foreach ($results as $result) {
-			$return[] = self::byId($result['id']);
-		}
-		return $return;
+		return self::cast(DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function allHistoryCmd() {
 		$sql = 'SELECT ' . DB::buildField(__CLASS__, 'c') . '
 		FROM cmd c
@@ -101,7 +110,7 @@ class cmd {
 		INNER JOIN object ob ON el.object_id=ob.id
 		WHERE isHistorized=1
 		AND type=\'info\'';
-		$sql .= ' ORDER BY ob.name,el.name,c.name';
+		$sql .= ' ORDER BY ob.position,ob.name,el.name,c.name';
 		$result1 = self::cast(DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 		$sql = 'SELECT ' . DB::buildField(__CLASS__, 'c') . '
 		FROM cmd c
@@ -113,20 +122,20 @@ class cmd {
 		$result2 = self::cast(DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 		return array_merge($result1, $result2);
 	}
-
+	
 	public static function byEqLogicId($_eqLogic_id, $_type = null, $_visible = null, $_eqLogic = null, $_has_generic_type = null) {
 		$values = array();
 		if (is_array($_eqLogic_id)) {
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-		FROM cmd
-		WHERE eqLogic_id IN (' . implode(',', $_eqLogic_id) . ')';
+			FROM cmd
+			WHERE eqLogic_id IN (' .trim(preg_replace('/[, ]{2,}/m',',',implode(',', $_eqLogic_id)),',') . ')';
 		} else {
 			$values = array(
 				'eqLogic_id' => $_eqLogic_id,
 			);
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-		FROM cmd
-		WHERE eqLogic_id=:eqLogic_id';
+			FROM cmd
+			WHERE eqLogic_id=:eqLogic_id';
 		}
 		if ($_type !== null) {
 			$values['type'] = $_type;
@@ -141,7 +150,7 @@ class cmd {
 		$sql .= ' ORDER BY `order`,`name`';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__), $_eqLogic);
 	}
-
+	
 	public static function byLogicalId($_logical_id, $_type = null) {
 		$values = array(
 			'logicalId' => $_logical_id,
@@ -156,7 +165,7 @@ class cmd {
 		$sql .= ' ORDER BY `order`';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byGenericType($_generic_type, $_eqLogic_id = null, $_one = false) {
 		if (is_array($_generic_type)) {
 			$in = '';
@@ -165,15 +174,15 @@ class cmd {
 			}
 			$values = array();
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-		FROM cmd
-		WHERE generic_type IN (' . trim($in, ',') . ')';
+			FROM cmd
+			WHERE generic_type IN (' . trim(preg_replace('/[, ]{2,}/m',',',$in), ',') . ')';
 		} else {
 			$values = array(
 				'generic_type' => $_generic_type,
 			);
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-		FROM cmd
-		WHERE generic_type=:generic_type';
+			FROM cmd
+			WHERE generic_type=:generic_type';
 		}
 		if ($_eqLogic_id !== null) {
 			$values['eqLogic_id'] = $_eqLogic_id;
@@ -185,22 +194,22 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function searchConfiguration($_configuration, $_eqType = null) {
 		if (!is_array($_configuration)) {
 			$values = array(
 				'configuration' => '%' . $_configuration . '%',
 			);
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-					FROM cmd
-					WHERE configuration LIKE :configuration';
+			FROM cmd
+			WHERE configuration LIKE :configuration';
 		} else {
 			$values = array(
 				'configuration' => '%' . $_configuration[0] . '%',
 			);
 			$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-			        FROM cmd
-			        WHERE configuration LIKE :configuration';
+			FROM cmd
+			WHERE configuration LIKE :configuration';
 			for ($i = 1; $i < count($_configuration); $i++) {
 				$values['configuration' . $i] = '%' . $_configuration[$i] . '%';
 				$sql .= ' OR configuration LIKE :configuration' . $i;
@@ -213,7 +222,7 @@ class cmd {
 		$sql .= ' ORDER BY name';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function searchConfigurationEqLogic($_eqLogic_id, $_configuration, $_type = null) {
 		$values = array(
 			'configuration' => '%' . $_configuration . '%',
@@ -229,7 +238,7 @@ class cmd {
 		$sql .= ' AND configuration LIKE :configuration';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function searchTemplate($_template, $_eqType = null, $_type = null, $_subtype = null) {
 		$values = array(
 			'template' => '%' . $_template . '%',
@@ -252,7 +261,7 @@ class cmd {
 		$sql .= ' ORDER BY name';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byEqLogicIdAndLogicalId($_eqLogic_id, $_logicalId, $_multiple = false, $_type = null) {
 		$values = array(
 			'eqLogic_id' => $_eqLogic_id,
@@ -271,7 +280,7 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byEqLogicIdAndGenericType($_eqLogic_id, $_generic_type, $_multiple = false, $_type = null) {
 		$values = array(
 			'eqLogic_id' => $_eqLogic_id,
@@ -290,13 +299,13 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byValue($_value, $_type = null, $_onlyEnable = false) {
 		$values = array(
 			'value' => $_value,
 			'search' => '%#' . $_value . '#%',
 		);
-
+		
 		if ($_onlyEnable) {
 			$sql = 'SELECT ' . DB::buildField(__CLASS__, 'c') . '
 			FROM cmd c
@@ -320,7 +329,7 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byTypeEqLogicNameCmdName($_eqType_name, $_eqLogic_name, $_cmd_name) {
 		$values = array(
 			'eqType_name' => $_eqType_name,
@@ -335,7 +344,7 @@ class cmd {
 		AND el.eqType_name=:eqType_name';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byEqLogicIdCmdName($_eqLogic_id, $_cmd_name) {
 		$values = array(
 			'eqLogic_id' => $_eqLogic_id,
@@ -347,13 +356,13 @@ class cmd {
 		AND c.eqLogic_id=:eqLogic_id';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byObjectNameEqLogicNameCmdName($_object_name, $_eqLogic_name, $_cmd_name) {
 		$values = array(
 			'eqLogic_name' => $_eqLogic_name,
 			'cmd_name' => (html_entity_decode($_cmd_name) != '') ? html_entity_decode($_cmd_name) : $_cmd_name,
 		);
-
+		
 		if ($_object_name == __('Aucun', __FILE__)) {
 			$sql = 'SELECT ' . DB::buildField(__CLASS__, 'c') . '
 			FROM cmd c
@@ -373,7 +382,7 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byObjectNameCmdName($_object_name, $_cmd_name) {
 		$values = array(
 			'object_name' => $_object_name,
@@ -387,7 +396,7 @@ class cmd {
 		AND ob.name=:object_name';
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function byTypeSubType($_type, $_subType = '') {
 		$values = array(
 			'type' => $_type,
@@ -401,7 +410,7 @@ class cmd {
 		}
 		return self::cast(DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__));
 	}
-
+	
 	public static function cmdToHumanReadable($_input) {
 		if (is_object($_input)) {
 			$reflections = array();
@@ -420,27 +429,23 @@ class cmd {
 			return $_input;
 		}
 		if (is_array($_input)) {
-			foreach ($_input as $key => $value) {
-				$_input[$key] = self::cmdToHumanReadable($value);
-			}
-			return $_input;
+			return json_decode(self::cmdToHumanReadable(json_encode($_input)), true);
 		}
 		$replace = array();
 		preg_match_all("/#([0-9]*)#/", $_input, $matches);
-		foreach ($matches[1] as $cmd_id) {
-			if (isset($replace['#' . $cmd_id . '#'])) {
+		if (count($matches[1]) == 0) {
+			return $_input;
+		}
+		$cmds = self::byIds($matches[1]);
+		foreach ($cmds as $cmd) {
+			if (isset($replace['#' . $cmd->getId() . '#'])) {
 				continue;
 			}
-			if (is_numeric($cmd_id)) {
-				$cmd = self::byId($cmd_id);
-				if (is_object($cmd)) {
-					$replace['#' . $cmd_id . '#'] = '#' . $cmd->getHumanName() . '#';
-				}
-			}
+			$replace['#' . $cmd->getId() . '#'] = '#' . $cmd->getHumanName() . '#';
 		}
 		return str_replace(array_keys($replace), $replace, $_input);
 	}
-
+	
 	public static function humanReadableToCmd($_input) {
 		$isJson = false;
 		if (is_json($_input)) {
@@ -490,7 +495,7 @@ class cmd {
 		}
 		return str_replace(array_keys($replace), $replace, $_input);
 	}
-
+	
 	public static function byString($_string) {
 		$cmd = self::byId(str_replace('#', '', self::humanReadableToCmd($_string)));
 		if (!is_object($cmd)) {
@@ -498,7 +503,7 @@ class cmd {
 		}
 		return $cmd;
 	}
-
+	
 	public static function cmdToValue($_input, $_quote = false) {
 		if (is_object($_input)) {
 			$reflections = array();
@@ -529,11 +534,11 @@ class cmd {
 			if (isset($replace['#' . $cmd_id . '#'])) {
 				continue;
 			}
-			$mc = cache::byKey('cmdCacheAttr' . $cmd_id);
-			if (utils::getJsonAttr($mc->getValue(), 'value', null) !== null) {
-				$collectDate = utils::getJsonAttr($mc->getValue(), 'collectDate', date('Y-m-d H:i:s'));
-				$valueDate = utils::getJsonAttr($mc->getValue(), 'valueDate', date('Y-m-d H:i:s'));
-				$cmd_value = utils::getJsonAttr($mc->getValue(), 'value', '');
+			$cache = cache::byKey('cmdCacheAttr' . $cmd_id)->getValue();
+			if (utils::getJsonAttr($cache, 'value', null) !== null) {
+				$collectDate = utils::getJsonAttr($cache, 'collectDate', date('Y-m-d H:i:s'));
+				$valueDate = utils::getJsonAttr($cache, 'valueDate', date('Y-m-d H:i:s'));
+				$cmd_value = utils::getJsonAttr($cache, 'value', '');
 			} else {
 				$cmd = self::byId($cmd_id);
 				if (!is_object($cmd) || $cmd->getType() != 'info') {
@@ -543,7 +548,7 @@ class cmd {
 				$collectDate = $cmd->getCollectDate();
 				$valueDate = $cmd->getValueDate();
 			}
-			if ($_quote && (strpos($cmd_value, ' ') !== false || preg_match("/[a-zA-Z#]/", $cmd_value) || $cmd_value === '')) {
+			if ($_quote && (substr_count($cmd_value,'.') > 1 || strpos($cmd_value, ' ') !== false || preg_match("/[a-zA-Z#]/", $cmd_value) || $cmd_value === '')) {
 				$cmd_value = '"' . trim($cmd_value, '"') . '"';
 			}
 			if (!$json) {
@@ -559,13 +564,13 @@ class cmd {
 		}
 		return str_replace(array_keys($replace), $replace, $_input);
 	}
-
+	
 	public static function allType() {
 		$sql = 'SELECT distinct(type) as type
 		FROM cmd';
 		return DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL);
 	}
-
+	
 	public static function allSubType($_type = '') {
 		$values = array();
 		$sql = 'SELECT distinct(subType) as subtype';
@@ -576,13 +581,13 @@ class cmd {
 		$sql .= ' FROM cmd';
 		return DB::Prepare($sql, $values, DB::FETCH_TYPE_ALL);
 	}
-
+	
 	public static function allUnite() {
 		$sql = 'SELECT distinct(unite) as unite
 		FROM cmd';
 		return DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL);
 	}
-
+	
 	public static function convertColor($_color) {
 		$colors = config::byKey('convertColor');
 		if (isset($colors[$_color])) {
@@ -590,9 +595,9 @@ class cmd {
 		}
 		throw new Exception(__('Impossible de traduire la couleur en code hexadécimal :', __FILE__) . $_color);
 	}
-
+	
 	public static function availableWidget($_version) {
-		$path = dirname(__FILE__) . '/../template/' . $_version;
+		$path = __DIR__ . '/../template/' . $_version;
 		$files = ls($path, 'cmd.*', false, array('files', 'quiet'));
 		$return = array();
 		foreach ($files as $file) {
@@ -607,7 +612,7 @@ class cmd {
 				$return[$informations[1]][$informations[2]][$informations[3]] = array('name' => $informations[3], 'location' => 'core');
 			}
 		}
-		$path = dirname(__FILE__) . '/../../plugins/widget/core/template/' . $_version;
+		$path = __DIR__ . '/../../plugins/widget/core/template/' . $_version;
 		if (file_exists($path)) {
 			$files = ls($path, 'cmd.*', false, array('files', 'quiet'));
 			foreach ($files as $file) {
@@ -627,14 +632,14 @@ class cmd {
 		}
 		return $return;
 	}
-
+	
 	public static function returnState($_options) {
 		$cmd = cmd::byId($_options['cmd_id']);
 		if (is_object($cmd)) {
 			$cmd->event($cmd->getConfiguration('returnStateValue', 0));
 		}
 	}
-
+	
 	public static function deadCmd() {
 		$return = array();
 		foreach (cmd::all() as $cmd) {
@@ -668,7 +673,7 @@ class cmd {
 		}
 		return $return;
 	}
-
+	
 	public static function cmdAlert($_options) {
 		$cmd = cmd::byId($_options['cmd_id']);
 		if (!is_object($cmd)) {
@@ -680,7 +685,7 @@ class cmd {
 			$cmd->executeAlertCmdAction();
 		}
 	}
-
+	
 	public static function timelineDisplay($_event) {
 		$return = array();
 		$return['date'] = $_event['datetime'];
@@ -695,27 +700,27 @@ class cmd {
 		$return['object'] = is_object($object) ? $object->getId() : 'aucun';
 		$return['plugins'] = $eqLogic->getEqType_name();
 		$return['category'] = $eqLogic->getCategory();
-
+		
 		if ($_event['subtype'] == 'action') {
 			$return['html'] = '<div class="cmd" data-id="' . $_event['id'] . '">'
-				. '<div style="background-color:#F5A9BC;padding:1px;font-size:0.9em;font-weight: bold;cursor:help;">' . $_event['name'] . '<i class="fa fa-cogs pull-right cursor bt_configureCmd"></i></div>'
-				. '<div style="background-color:white;padding:1px;font-size:0.8em;cursor:default;">' . $_event['options'] . '<div/>'
-				. '</div>';
+			. '<div style="background-color:#F5A9BC;padding:1px;font-size:0.9em;font-weight: bold;cursor:help;">' . $_event['name'] . '<i class="fa fa-cogs pull-right cursor bt_configureCmd"></i></div>'
+			. '<div style="background-color:white;padding:1px;font-size:0.8em;cursor:default;">' . $_event['options'] . '<div/>'
+			. '</div>';
 		} else {
 			$backgroundColor = '#A9D0F5';
 			if (isset($_event['cmdType']) && $_event['cmdType'] == 'binary') {
 				$backgroundColor = ($_event['value'] == 0 ? '#ff8693' : '#c1e5bd');
 			}
 			$return['html'] = '<div class="cmd" data-id="' . $_event['id'] . '">'
-				. '<div style="background-color:' . $backgroundColor . ';padding:1px;font-size:0.9em;font-weight: bold;cursor:help;">' . $_event['name'] . '<i class="fa fa-cogs pull-right cursor bt_configureCmd"></i></div>'
-				. '<div style="background-color:white;padding:1px;font-size:0.8em;cursor:default;">' . $_event['value'] . '<div/>'
-				. '</div>';
+			. '<div style="background-color:' . $backgroundColor . ';padding:1px;font-size:0.9em;font-weight: bold;cursor:help;">' . $_event['name'] . '<i class="fa fa-cogs pull-right cursor bt_configureCmd"></i></div>'
+			. '<div style="background-color:white;padding:1px;font-size:0.8em;cursor:default;">' . $_event['value'] . '<div/>'
+			. '</div>';
 		}
 		return $return;
 	}
-
+	
 	/*     * *********************Méthodes d'instance************************* */
-
+	
 	public function formatValue($_value, $_quote = false) {
 		if (is_array($_value)) {
 			return '';
@@ -730,82 +735,82 @@ class cmd {
 		if ($this->getType() == 'info') {
 			switch ($this->getSubType()) {
 				case 'string':
-					if ($_quote) {
-						return '"' . $_value . '"';
-					}
-					return $_value;
+				if ($_quote) {
+					return '"' . $_value . '"';
+				}
+				return $_value;
 				case 'other':
-					if ($_quote) {
-						return '"' . $_value . '"';
-					}
-					return $_value;
+				if ($_quote) {
+					return '"' . $_value . '"';
+				}
+				return $_value;
 				case 'binary':
-					if ($this->getConfiguration('calculValueOffset') != '') {
-						try {
-							if (preg_match("/[a-zA-Z#]/", $_value)) {
-								$_value = jeedom::evaluateExpression(str_replace('#value#', '"' . $_value . '"', str_replace('\'#value#\'', '#value#', str_replace('"#value#"', '#value#', $this->getConfiguration('calculValueOffset')))));
-							} else {
-								$_value = jeedom::evaluateExpression(str_replace('#value#', $_value, $this->getConfiguration('calculValueOffset')));
-							}
-						} catch (Exception $ex) {
-
-						} catch (Error $ex) {
-
+				if ($this->getConfiguration('calculValueOffset') != '') {
+					try {
+						if (preg_match("/[a-zA-Z#]/", $_value)) {
+							$_value = jeedom::evaluateExpression(str_replace('#value#', '"' . $_value . '"', str_replace('\'#value#\'', '#value#', str_replace('"#value#"', '#value#', $this->getConfiguration('calculValueOffset')))));
+						} else {
+							$_value = jeedom::evaluateExpression(str_replace('#value#', $_value, $this->getConfiguration('calculValueOffset')));
 						}
+					} catch (Exception $ex) {
+						
+					} catch (Error $ex) {
+						
 					}
-					$value = strtolower($_value);
-					if ($value == 'on' || $value == 'high' || $value == 'true' || $value === true) {
-						return 1;
-					}
-					if ($value == 'off' || $value == 'low' || $value == 'false' || $value === false) {
-						return 0;
-					}
-					if ((is_numeric(intval($_value)) && intval($_value) > 1) || $_value === true || $_value == 1) {
-						return 1;
-					}
+				}
+				$value = strtolower($_value);
+				if ($value == 'on' || $value == 'high' || $value == 'true' || $value === true) {
+					return 1;
+				}
+				if ($value == 'off' || $value == 'low' || $value == 'false' || $value === false) {
 					return 0;
+				}
+				if ((is_numeric(intval($_value)) && intval($_value) > 1) || $_value === true || $_value == 1) {
+					return 1;
+				}
+				return 0;
 				case 'numeric':
-					$_value = floatval(str_replace(',', '.', $_value));
-					if ($this->getConfiguration('calculValueOffset') != '') {
-						try {
-							if (preg_match("/[a-zA-Z#]/", $_value)) {
-								$_value = jeedom::evaluateExpression(str_replace('#value#', '"' . $_value . '"', str_replace('\'#value#\'', '#value#', str_replace('"#value#"', '#value#', $this->getConfiguration('calculValueOffset')))));
-							} else {
-								$_value = jeedom::evaluateExpression(str_replace('#value#', $_value, $this->getConfiguration('calculValueOffset')));
-							}
-						} catch (Exception $ex) {
-
-						} catch (Error $ex) {
-
+				$_value = floatval(str_replace(',', '.', $_value));
+				if ($this->getConfiguration('calculValueOffset') != '') {
+					try {
+						if (preg_match("/[a-zA-Z#]/", $_value)) {
+							$_value = jeedom::evaluateExpression(str_replace('#value#', '"' . $_value . '"', str_replace('\'#value#\'', '#value#', str_replace('"#value#"', '#value#', $this->getConfiguration('calculValueOffset')))));
+						} else {
+							$_value = jeedom::evaluateExpression(str_replace('#value#', $_value, $this->getConfiguration('calculValueOffset')));
 						}
+					} catch (Exception $ex) {
+						
+					} catch (Error $ex) {
+						
 					}
-					if ($this->getConfiguration('historizeRound') !== '' && is_numeric($this->getConfiguration('historizeRound')) && $this->getConfiguration('historizeRound') >= 0) {
-						$_value = round($_value, $this->getConfiguration('historizeRound'));
-					}
-					if ($_value > $this->getConfiguration('maxValue', $_value) && $this->getConfiguration('maxValueReplace') == 1) {
-						$_value = $this->getConfiguration('maxValue', $_value);
-					}
-					if ($_value < $this->getConfiguration('minValue', $_value) && $this->getConfiguration('minValueReplace') == 1) {
-						$_value = $this->getConfiguration('minValue', $_value);
-					}
-					return floatval($_value);
+				}
+				if ($this->getConfiguration('historizeRound') !== '' && is_numeric($this->getConfiguration('historizeRound')) && $this->getConfiguration('historizeRound') >= 0) {
+					$_value = round($_value, $this->getConfiguration('historizeRound'));
+				}
+				if ($_value > $this->getConfiguration('maxValue', $_value) && $this->getConfiguration('maxValueReplace') == 1) {
+					$_value = $this->getConfiguration('maxValue', $_value);
+				}
+				if ($_value < $this->getConfiguration('minValue', $_value) && $this->getConfiguration('minValueReplace') == 1) {
+					$_value = $this->getConfiguration('minValue', $_value);
+				}
+				return floatval($_value);
 			}
 		}
 		return $_value;
 	}
-
+	
 	public function getLastValue() {
 		return $this->getConfiguration('lastCmdValue', null);
 	}
-
+	
 	public function dontRemoveCmd() {
 		return false;
 	}
-
+	
 	public function getTableName() {
 		return 'cmd';
 	}
-
+	
 	public function save() {
 		if ($this->getName() == '') {
 			throw new Exception(__('Le nom de la commande ne peut pas être vide :', __FILE__) . print_r($this, true));
@@ -831,6 +836,7 @@ class cmd {
 		}
 		DB::save($this);
 		if ($this->_needRefreshWidget) {
+			$this->_needRefreshWidget = false;
 			$this->getEqLogic()->refreshWidget();
 		}
 		if ($this->_needRefreshAlert && $this->getType() == 'info') {
@@ -842,11 +848,11 @@ class cmd {
 		}
 		return true;
 	}
-
+	
 	public function refresh() {
 		DB::refresh($this);
 	}
-
+	
 	public function remove() {
 		viewData::removeByTypeLinkId('cmd', $this->getId());
 		dataStore::removeByTypeLinkId('cmd', $this->getId());
@@ -854,13 +860,14 @@ class cmd {
 		$this->emptyHistory();
 		cache::delete('cmdCacheAttr' . $this->getId());
 		cache::delete('cmd' . $this->getId());
+		jeedom::addRemoveHistory(array('id' => $this->getId(), 'name' => $this->getHumanName(), 'date' => date('Y-m-d H:i:s'), 'type' => 'cmd'));
 		return DB::remove($this);
 	}
-
+	
 	public function execute($_options = array()) {
 		return false;
 	}
-
+	
 	public function preExecCmd($_values = array()) {
 		if (!is_array($this->getConfiguration('jeedomPreExecCmd')) || count($this->getConfiguration('jeedomPreExecCmd')) == 0) {
 			return;
@@ -886,7 +893,7 @@ class cmd {
 			}
 		}
 	}
-
+	
 	public function postExecCmd($_values = array()) {
 		if (!is_array($this->getConfiguration('jeedomPostExecCmd'))) {
 			return;
@@ -912,24 +919,33 @@ class cmd {
 			}
 		}
 	}
-
+	
 	/**
-	 *
-	 * @param type $_options
-	 * @param type $_sendNodeJsEvent
-	 * @param type $_quote
-	 * @return command result
-	 * @throws Exception
-	 */
+	*
+	* @param type $_options
+	* @param type $_sendNodeJsEvent
+	* @param type $_quote
+	* @return command result
+	* @throws Exception
+	*/
 	public function execCmd($_options = null, $_sendNodeJsEvent = false, $_quote = false) {
 		if ($this->getType() == 'info') {
-			$this->setCollectDate($this->getCache('collectDate', date('Y-m-d H:i:s'), true));
-			$this->setValueDate($this->getCache('valueDate', date('Y-m-d H:i:s'), true));
-			return $this->getCache('value', '');
+			$state = $this->getCache(array('collectDate', 'valueDate', 'value'));
+			if(isset($state['collectDate'])){
+				$this->setCollectDate($state['collectDate']);
+			}else{
+				$this->setCollectDate(date('Y-m-d H:i:s'));
+			}
+			if(isset($state['valueDate'])){
+				$this->setValueDate($state['valueDate']);
+			}else{
+				$this->setValueDate($this->getCollectDate());
+			}
+			return $state['value'];
 		}
 		$eqLogic = $this->getEqLogic();
 		if ($this->getType() != 'info' && (!is_object($eqLogic) || $eqLogic->getIsEnable() != 1)) {
-			throw new Exception(__('Equipement désactivé - impossible d\'exécuter la commande : ' . $this->getHumanName(), __FILE__));
+			throw new Exception(__('Equipement désactivé - impossible d\'exécuter la commande : ', __FILE__) . $this->getHumanName());
 		}
 		try {
 			if ($_options !== null && $_options !== '') {
@@ -952,7 +968,7 @@ class cmd {
 			} else {
 				log::add('event', 'info', __('Exécution de la commande ', __FILE__) . $this->getHumanName());
 			}
-
+			
 			if ($this->getConfiguration('timeline::enable')) {
 				jeedom::addTimelineEvent(array('type' => 'cmd', 'subtype' => 'action', 'id' => $this->getId(), 'name' => $this->getHumanName(true), 'datetime' => date('Y-m-d H:i:s'), 'options' => $str_option));
 			}
@@ -991,18 +1007,18 @@ class cmd {
 				$value = $this->getConfiguration('updateCmdToValue');
 				switch ($this->getSubType()) {
 					case 'slider':
-						$value = str_replace('#slider#', $options['slider'], $value);
-						break;
+					$value = str_replace('#slider#', $options['slider'], $value);
+					break;
 					case 'color':
-						$value = str_replace('#color#', $options['color'], $value);
-						break;
+					$value = str_replace('#color#', $options['color'], $value);
+					break;
 				}
 				$cmd->event($value);
 			}
 		}
 		return $value;
 	}
-
+	
 	public function getWidgetTemplateCode($_version = 'dashboard', $_noCustom = false) {
 		$version = jeedom::versionAlias($_version);
 		if (!$_noCustom && $this->getHtml('enable', 0) == 1 && $this->getHtml($_version) != '') {
@@ -1035,7 +1051,7 @@ class cmd {
 		}
 		return $template;
 	}
-
+	
 	public function toHtml($_version = 'dashboard', $_options = '', $_cmdColor = null) {
 		$version2 = jeedom::versionAlias($_version, false);
 		if ($this->getDisplay('showOn' . $version2, 1) == 0) {
@@ -1055,6 +1071,8 @@ class cmd {
 			'#logicalId#' => $this->getLogicalId(),
 			'#uid#' => 'cmd' . $this->getId() . eqLogic::UIDDELIMITER . mt_rand() . eqLogic::UIDDELIMITER,
 			'#version#' => $_version,
+			'#eqLogic_id#' => $this->getEqLogic_id(),
+			'#generic_type#' => $this->getGeneric_type(),
 			'#hideCmdName#' => '',
 		);
 		if ($this->getConfiguration('listValue', '') != '') {
@@ -1087,7 +1105,7 @@ class cmd {
 			$replace['#name_display#'] = $this->getDisplay('icon') . ' ' . $this->getName();
 		}
 		$template = $this->getWidgetTemplateCode($_version);
-
+		
 		if ($_cmdColor === null && $version != 'scenario') {
 			$eqLogic = $this->getEqLogic();
 			$vcolor = ($version == 'mobile') ? 'mcmdColor' : 'cmdColor';
@@ -1099,25 +1117,31 @@ class cmd {
 		} else {
 			$replace['#cmdColor#'] = $_cmdColor;
 		}
-
+		
 		if ($this->getType() == 'info') {
 			$replace['#state#'] = '';
 			$replace['#tendance#'] = '';
-			$replace['#state#'] = $this->execCmd();
-			if (strpos($replace['#state#'], 'error::') !== false) {
+			if ($this->getEqLogic()->getIsEnable() == 0) {
 				$template = getTemplate('core', $version, 'cmd.error');
-				$replace['#state#'] = str_replace('error::', '', $replace['#state#']);
+				$replace['#state#'] = 'N/A';
 			} else {
-				if ($this->getSubType() == 'binary' && $this->getDisplay('invertBinary') == 1) {
-					$replace['#state#'] = ($replace['#state#'] == 1) ? 0 : 1;
+				$replace['#state#'] = $this->execCmd();
+				if (strpos($replace['#state#'], 'error::') !== false) {
+					$template = getTemplate('core', $version, 'cmd.error');
+					$replace['#state#'] = str_replace('error::', '', $replace['#state#']);
+				} else {
+					if ($this->getSubType() == 'binary' && $this->getDisplay('invertBinary') == 1) {
+						$replace['#state#'] = ($replace['#state#'] == 1) ? 0 : 1;
+					}
+					if ($this->getSubType() == 'numeric' && trim($replace['#state#']) === '') {
+						$replace['#state#'] = 0;
+					}
 				}
-				if ($this->getSubType() == 'numeric' && trim($replace['#state#']) === '') {
-					$replace['#state#'] = 0;
+				if (method_exists($this, 'formatValueWidget')) {
+					$replace['#state#'] = $this->formatValueWidget($replace['#state#']);
 				}
 			}
-			if (method_exists($this, 'formatValueWidget')) {
-				$replace['#state#'] = $this->formatValueWidget($replace['#state#']);
-			}
+			
 			$replace['#state#'] = str_replace(array("\'", "'"), array("'", "\'"), $replace['#state#']);
 			$replace['#collectDate#'] = $this->getCollectDate();
 			$replace['#valueDate#'] = $this->getValueDate();
@@ -1181,16 +1205,14 @@ class cmd {
 					$replace['#' . $key . '#'] = $value;
 				}
 			}
-
+			
 			$html .= template_replace($replace, $template);
 			if (trim($html) == '') {
 				return $html;
 			}
 			if ($_options != '') {
 				$options = jeedom::toHumanReadable($_options);
-				if (is_json($options)) {
-					$options = json_decode($options, true);
-				}
+				$options = is_json($options, $options);
 				if (is_array($options)) {
 					foreach ($options as $key => $value) {
 						$replace['#' . $key . '#'] = $value;
@@ -1223,7 +1245,7 @@ class cmd {
 			return $html;
 		}
 	}
-
+	
 	public function event($_value, $_datetime = null, $_loop = 1) {
 		if ($_loop > 4 || $this->getType() != 'info') {
 			return;
@@ -1277,36 +1299,36 @@ class cmd {
 			scenario::check($this);
 			$eqLogic->emptyCacheWidget();
 			$level = $this->checkAlertLevel($value);
-			$events = array(array('cmd_id' => $this->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate(), 'alertLevel' => $level));
-		} else {
-			$events = array(array('cmd_id' => $this->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate()));
-		}
-		$foundInfo = false;
-		$value_cmd = self::byValue($this->getId(), null, true);
-		if (is_array($value_cmd)) {
-			foreach ($value_cmd as $cmd) {
-				if ($cmd->getType() == 'action') {
-					if (!$repeat) {
-						$events[] = array('cmd_id' => $cmd->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate());
-					}
-				} else {
-					if ($_loop > 1) {
-						$cmd->event($cmd->execute(), null, $_loop);
+			$events[] = array('cmd_id' => $this->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate(), 'alertLevel' => $level);
+			$foundInfo = false;
+			$value_cmd = self::byValue($this->getId(), null, true);
+			if (is_array($value_cmd) && count($value_cmd) > 0) {
+				foreach ($value_cmd as $cmd) {
+					if ($cmd->getType() == 'action') {
+						if (!$repeat) {
+							$events[] = array('cmd_id' => $cmd->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate());
+						}
 					} else {
-						$foundInfo = true;
+						if ($_loop > 1) {
+							$cmd->event($cmd->execute(), null, $_loop);
+						} else {
+							$foundInfo = true;
+						}
 					}
 				}
 			}
-		}
-		if ($foundInfo) {
-			listener::backgroundCalculDependencyCmd($this->getId());
+			if ($foundInfo) {
+				listener::backgroundCalculDependencyCmd($this->getId());
+			}
+		} else {
+			$events[] = array('cmd_id' => $this->getId(), 'value' => $value, 'display_value' => $display_value, 'valueDate' => $this->getValueDate(), 'collectDate' => $this->getCollectDate());
 		}
 		if (count($events) > 0) {
 			event::adds('cmd::update', $events);
 		}
-		listener::check($this->getId(), $value);
 		if (!$repeat) {
-			object::checkSummaryUpdate($this->getId());
+			listener::check($this->getId(), $value, $this->getCollectDate());
+			jeeObject::checkSummaryUpdate($this->getId());
 		}
 		$this->addHistoryValue($value, $this->getCollectDate());
 		$this->checkReturnState($value);
@@ -1321,7 +1343,7 @@ class cmd {
 			$this->pushUrl($value);
 		}
 	}
-
+	
 	public function checkReturnState($_value) {
 		if (is_numeric($this->getConfiguration('returnStateTime')) && $this->getConfiguration('returnStateTime') > 0 && $_value != $this->getConfiguration('returnStateValue') && trim($this->getConfiguration('returnStateValue')) != '') {
 			$cron = cron::byClassAndFunction('cmd', 'returnState', array('cmd_id' => intval($this->getId())));
@@ -1338,7 +1360,7 @@ class cmd {
 			$cron->save();
 		}
 	}
-
+	
 	public function checkCmdAlert($_value) {
 		if ($this->getConfiguration('jeedomCheckCmdOperator') == '' || $this->getConfiguration('jeedomCheckCmdTest') == '' || is_nan($this->getConfiguration('jeedomCheckCmdTime', 0))) {
 			return;
@@ -1373,7 +1395,7 @@ class cmd {
 			}
 		}
 	}
-
+	
 	public function executeAlertCmdAction() {
 		if (!is_array($this->getConfiguration('actionCheckCmd'))) {
 			return;
@@ -1390,13 +1412,13 @@ class cmd {
 			}
 		}
 	}
-
+	
 	public function checkAlertLevel($_value, $_allowDuring = true) {
 		if ($this->getType() != 'info' || ($this->getAlert('warningif') == '' && $this->getAlert('dangerif') == '')) {
 			return 'none';
 		}
 		global $JEEDOM_INTERNAL_CONFIG;
-
+		
 		$currentLevel = 'none';
 		foreach ($JEEDOM_INTERNAL_CONFIG['alerts'] as $level => $value) {
 			if (!$value['check']) {
@@ -1431,17 +1453,17 @@ class cmd {
 			$cron->setSchedule(cron::convertDateToCron($next));
 			$cron->setLastRun(date('Y-m-d H:i:s'));
 			$cron->save();
-			if ($currentLevel == 'none') {
-				$cron = cron::byClassAndFunction('cmd', 'duringAlertLevel', array('cmd_id' => intval($this->getId())));
-				if (is_object($cron)) {
-					$cron->remove(false);
-				}
-			}
 			return 'none';
+		}
+		if ($_allowDuring && $currentLevel == 'none') {
+			$cron = cron::byClassAndFunction('cmd', 'duringAlertLevel', array('cmd_id' => intval($this->getId())));
+			if (is_object($cron)) {
+				$cron->remove(false);
+			}
 		}
 		return $currentLevel;
 	}
-
+	
 	public static function duringAlertLevel($_options) {
 		$cmd = cmd::byId($_options['cmd_id']);
 		if (!is_object($cmd)) {
@@ -1456,7 +1478,7 @@ class cmd {
 			$cmd->actionAlertLevel($level, $value);
 		}
 	}
-
+	
 	public function actionAlertLevel($_level, $_value) {
 		if ($this->getType() != 'info') {
 			return;
@@ -1477,7 +1499,7 @@ class cmd {
 			$message .= ' => ' . str_replace('#value#', $_value, $this->getAlert($_level . 'if'));
 			log::add('event', 'info', $message);
 			$eqLogic = $this->getEqLogic();
-			if (config::ByKey('alert::addMessageOn' . ucfirst($_level)) == 1) {
+			if (config::byKey('alert::addMessageOn' . ucfirst($_level)) == 1) {
 				message::add($eqLogic->getEqType_name(), $message);
 			}
 			$cmds = explode(('&&'), config::byKey('alert::' . $_level . 'Cmd'));
@@ -1493,7 +1515,7 @@ class cmd {
 				}
 			}
 		}
-
+		
 		if ($prevAlert != $maxAlert) {
 			$status = array(
 				'warning' => 0,
@@ -1506,7 +1528,7 @@ class cmd {
 			$eqLogic->refreshWidget();
 		}
 	}
-
+	
 	public function pushUrl($_value) {
 		$url = $this->getConfiguration('jeedomPushUrl');
 		if ($url == '') {
@@ -1534,7 +1556,7 @@ class cmd {
 			log::add('cmd', 'error', __('Erreur push sur : ', __FILE__) . $url . ' => ' . $e->getMessage());
 		}
 	}
-
+	
 	public function generateAskResponseLink($_response, $_plugin = 'core', $_network = 'external') {
 		$token = $this->getCache('ask::token', config::genKey());
 		$this->setCache(array('ask::count' => 0, 'ask::token' => $token));
@@ -1547,12 +1569,13 @@ class cmd {
 		$return .= '&cmd_id=' . $this->getId();
 		return $return;
 	}
-
+	
 	public function askResponse($_response) {
 		if ($this->getCache('ask::variable', 'none') == 'none') {
 			return false;
 		}
-		if ($this->getCache('ask::endtime', null) === null || $this->getCache('ask::endtime', null) < strtotime('now')) {
+		$askEndTime = $this->getCache('ask::endtime', null);
+		if ($askEndTime === null || $askEndTime < strtotime('now')) {
 			return false;
 		}
 		$dataStore = new dataStore();
@@ -1564,11 +1587,11 @@ class cmd {
 		$this->setCache(array('ask::variable' => 'none', 'ask::count' => 0, 'ask::token' => null, 'ask::endtime' => null));
 		return true;
 	}
-
+	
 	public function emptyHistory($_date = '') {
 		return history::emptyHistory($this->getId(), $_date);
 	}
-
+	
 	public function addHistoryValue($_value, $_datetime = '') {
 		if ($this->getIsHistorized() == 1 && ($_value === null || ($_value !== '' && $this->getType() == 'info' && $_value <= $this->getConfiguration('maxValue', $_value) && $_value >= $this->getConfiguration('minValue', $_value)))) {
 			$history = new history();
@@ -1578,18 +1601,18 @@ class cmd {
 			return $history->save($this);
 		}
 	}
-
+	
 	public function getStatistique($_startTime, $_endTime) {
 		if ($this->getType() != 'info' || $this->getType() == 'string') {
 			return array();
 		}
 		return history::getStatistique($this->getId(), $_startTime, $_endTime);
 	}
-
+	
 	public function getTendance($_startTime, $_endTime) {
 		return history::getTendance($this->getId(), $_startTime, $_endTime);
 	}
-
+	
 	public function getCmdValue() {
 		$cmd = self::byId(str_replace('#', '', $this->getValue()));
 		if (is_object($cmd)) {
@@ -1597,7 +1620,7 @@ class cmd {
 		}
 		return false;
 	}
-
+	
 	public function getHumanName($_tag = false, $_prettify = false) {
 		$name = '';
 		$eqLogic = $this->getEqLogic();
@@ -1611,15 +1634,15 @@ class cmd {
 		}
 		return $name;
 	}
-
+	
 	public function getHistory($_dateStart = null, $_dateEnd = null) {
 		return history::all($this->id, $_dateStart, $_dateEnd);
 	}
-
+	
 	public function getPluralityHistory($_dateStart = null, $_dateEnd = null, $_period = 'day', $_offset = 0) {
 		return history::getPlurality($this->id, $_dateStart, $_dateEnd, $_period, $_offset);
 	}
-
+	
 	public function widgetPossibility($_key = '', $_default = true) {
 		$class = new ReflectionClass($this->getEqType_name());
 		$method_toHtml = $class->getMethod('toHtml');
@@ -1657,7 +1680,7 @@ class cmd {
 				return $return;
 			}
 		}
-
+		
 		if ($_key != '') {
 			if (isset($return['custom']) && !isset($return[$_key])) {
 				return $return['custom'];
@@ -1666,7 +1689,7 @@ class cmd {
 		}
 		return $return;
 	}
-
+	
 	public function export() {
 		$cmd = clone $this;
 		$cmd->setId('');
@@ -1701,28 +1724,28 @@ class cmd {
 		}
 		return $return;
 	}
-
+	
 	public function getDirectUrlAccess() {
 		$url = '/core/api/jeeApi.php?apikey=' . config::byKey('api') . '&type=cmd&id=' . $this->getId();
 		if ($this->getType() == 'action') {
 			switch ($this->getSubType()) {
 				case 'slider':
-					$url .= '&slider=50';
-					break;
+				$url .= '&slider=50';
+				break;
 				case 'color':
-					$url .= '&color=#123456';
-					break;
+				$url .= '&color=#123456';
+				break;
 				case 'message':
-					$url .= '&title=montitre&message=monmessage';
-					break;
+				$url .= '&title=montitre&message=monmessage';
+				break;
 				case 'select':
-					$url .= '&select=value';
-					break;
+				$url .= '&select=value';
+				break;
 			}
 		}
 		return network::getNetworkAccess('external') . $url;
 	}
-
+	
 	public function checkAccessCode($_code) {
 		if ($this->getType() != 'action' || trim($this->getConfiguration('actionCodeAccess')) == '') {
 			return true;
@@ -1737,13 +1760,13 @@ class cmd {
 		}
 		return false;
 	}
-
+	
 	public function exportApi() {
 		$return = utils::o2a($this);
 		$return['currentValue'] = ($this->getType() !== 'action') ? $this->execCmd(null, 2) : $this->getConfiguration('lastCmdValue', null);
 		return $return;
 	}
-
+	
 	public function getLinkData(&$_data = array('node' => array(), 'link' => array()), $_level = 0, $_drill = null) {
 		if ($_drill === null) {
 			$_drill = config::byKey('graphlink::cmd::drill');
@@ -1783,7 +1806,7 @@ class cmd {
 		addGraphLink($this, 'cmd', $this->getEqLogic(), 'eqLogic', $_data, $_level, $_drill, array('dashvalue' => '1,0', 'lengthfactor' => 0.6));
 		return $_data;
 	}
-
+	
 	public function getUsedBy($_array = false) {
 		$return = array('cmd' => array(), 'eqLogic' => array(), 'scenario' => array(), 'plan' => array(), 'view' => array());
 		$return['cmd'] = self::searchConfiguration('#' . $this->getId() . '#');
@@ -1799,12 +1822,12 @@ class cmd {
 		}
 		return $return;
 	}
-
+	
 	public function getUse() {
 		$json = jeedom::fromHumanReadable(json_encode(utils::o2a($this)));
 		return jeedom::getTypeUse($json);
 	}
-
+	
 	public function hasRight($_user = null) {
 		if ($this->getType() == 'action') {
 			return $this->getEqLogic()->hasRight('x', $_user);
@@ -1812,241 +1835,283 @@ class cmd {
 			return $this->getEqLogic()->hasRight('r', $_user);
 		}
 	}
-
+	
 	/*     * **********************Getteur Setteur*************************** */
-
+	
 	public function getId() {
 		return $this->id;
 	}
-
+	
 	public function getName() {
 		return $this->name;
 	}
-
+	
 	public function getGeneric_type() {
 		return $this->generic_type;
 	}
-
+	
 	public function setGeneric_type($_generic_type) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->generic_type,$_generic_type);
 		$this->generic_type = $_generic_type;
 		return $this;
 	}
-
+	
 	public function getType() {
 		return $this->type;
 	}
-
+	
 	public function getSubType() {
 		return $this->subType;
 	}
-
+	
 	public function getEqType_name() {
 		return $this->eqType;
 	}
-
+	
 	public function getEqLogic_id() {
 		return $this->eqLogic_id;
 	}
-
+	
 	public function getIsHistorized() {
 		return $this->isHistorized;
 	}
-
+	
 	public function getUnite() {
 		return $this->unite;
 	}
-
+	
 	public function getEqLogic() {
 		if ($this->_eqLogic === null) {
 			$this->setEqLogic(eqLogic::byId($this->eqLogic_id));
 		}
 		return $this->_eqLogic;
 	}
-
+	
 	public function setEqLogic($_eqLogic) {
 		$this->_eqLogic = $_eqLogic;
 		return $this;
 	}
-
+	
 	public function getEventOnly() {
 		return 1;
 	}
-
-	public function setId($id = '') {
-		$this->id = $id;
+	
+	public function setId($_id = '') {
+		$this->_changed = utils::attrChanged($this->_changed,$this->id,$_id);
+		$this->id = $_id;
 		return $this;
 	}
-
+	
 	/**
-	 *
-	 * @param type $name
-	 * @return $this
-	 */
-	public function setName($name) {
-		$this->name = str_replace(array('&', '#', ']', '[', '%', "'"), '', $name);
+	*
+	* @param type $name
+	* @return $this
+	*/
+	public function setName($_name) {
+		$_name = str_replace(array('&', '#', ']', '[', '%', "'"), '', $_name);
+		$this->_changed = utils::attrChanged($this->_changed,$this->name,$_name);
+		$this->name = $_name;
 		return $this;
 	}
-
-	public function setType($type) {
-		$this->type = $type;
+	
+	public function setType($_type) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->type,$_type);
+		$this->type = $_type;
 		return $this;
 	}
-
-	public function setSubType($subType) {
-		$this->subType = $subType;
+	
+	public function setSubType($_subType) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->subType,$_subType);
+		$this->subType = $_subType;
 		return $this;
 	}
-
-	public function setEqLogic_id($eqLogic_id) {
-		$this->eqLogic_id = $eqLogic_id;
+	
+	public function setEqLogic_id($_eqLogic_id) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->eqLogic_id,$_eqLogic_id);
+		$this->eqLogic_id = $_eqLogic_id;
 		return $this;
 	}
-
-	public function setIsHistorized($isHistorized) {
-		$this->isHistorized = $isHistorized;
+	
+	public function setIsHistorized($_isHistorized) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->isHistorized,$_isHistorized);
+		$this->isHistorized = $_isHistorized;
 		return $this;
 	}
-
-	public function setUnite($unite) {
-		$this->unite = $unite;
+	
+	public function setUnite($_unite) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->unite,$_unite);
+		$this->unite = $_unite;
 		return $this;
 	}
-
+	
 	public function setEventOnly($eventOnly) {
 		trigger_error('This method is deprecated', E_USER_DEPRECATED);
-		return $this;
 	}
-
+	
 	public function getHtml($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->html, $_key, $_default);
 	}
-
+	
 	public function setHtml($_key, $_value) {
 		if (in_array($_key, array('dashboard', 'mobile', 'dview', 'mview', 'dplan')) && $this->getWidgetTemplateCode($_key, true) == $_value) {
 			$_value = '';
 		}
+		if ($this->getHtml($_key) != $_value) {
+			$this->_needRefreshWidget = true;
+			$this->_changed = true;
+		}
 		$this->html = utils::setJsonAttr($this->html, $_key, $_value);
-		$this->_needRefreshWidget = true;
 		return $this;
 	}
-
+	
 	public function getTemplate($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->template, $_key, $_default);
 	}
-
+	
 	public function setTemplate($_key, $_value) {
+		if ($this->getTemplate($_key) != $_value) {
+			$this->_needRefreshWidget = true;
+			$this->_changed = true;
+		}
 		$this->template = utils::setJsonAttr($this->template, $_key, $_value);
-		$this->_needRefreshWidget = true;
 		return $this;
 	}
-
+	
 	public function getConfiguration($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->configuration, $_key, $_default);
 	}
-
+	
 	public function setConfiguration($_key, $_value) {
 		if ($_key == 'actionCodeAccess' && $_value != '') {
 			if (!is_sha1($_value) && !is_sha512($_value)) {
 				$_value = sha512($_value);
 			}
 		}
-		$this->configuration = utils::setJsonAttr($this->configuration, $_key, $_value);
+		$configuration = utils::setJsonAttr($this->configuration, $_key, $_value);
+		$this->_changed = utils::attrChanged($this->_changed,$this->configuration,$configuration);
+		$this->configuration = $configuration;
 		return $this;
 	}
-
+	
 	public function getDisplay($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->display, $_key, $_default);
 	}
-
+	
 	public function setDisplay($_key, $_value) {
+		if ($this->getDisplay($_key) != $_value) {
+			$this->_needRefreshWidget = true;
+			$this->_changed = true;
+		}
 		$this->display = utils::setJsonAttr($this->display, $_key, $_value);
-		$this->_needRefreshWidget = true;
 		return $this;
 	}
-
+	
 	public function getAlert($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->alert, $_key, $_default);
 	}
-
+	
 	public function setAlert($_key, $_value) {
-		$this->alert = utils::setJsonAttr($this->alert, $_key, $_value);
+		$alert = utils::setJsonAttr($this->alert, $_key, $_value);
+		$this->_changed = utils::attrChanged($this->_changed,$this->alert,$alert );
+		$this->alert = $alert ;
 		$this->_needRefreshAlert = true;
 		return $this;
 	}
-
+	
 	public function getCollectDate() {
 		return $this->_collectDate;
 	}
-
+	
 	public function setCollectDate($_collectDate) {
 		$this->_collectDate = $_collectDate;
 		return $this;
 	}
-
+	
 	public function getValueDate() {
 		return $this->_valueDate;
 	}
-
+	
 	public function setValueDate($_valueDate) {
 		$this->_valueDate = $_valueDate;
 		return $this;
 	}
-
+	
 	public function getValue() {
 		return $this->value;
 	}
-
-	public function setValue($value) {
-		$this->value = $value;
+	
+	public function setValue($_value) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->value,$_value);
+		$this->value = $_value;
 		return $this;
 	}
-
+	
 	public function getIsVisible() {
 		return $this->isVisible;
 	}
-
+	
 	public function setIsVisible($isVisible) {
+		if ($this->isVisible != $isVisible) {
+			$this->_needRefreshWidget = true;
+			$this->_changed = true;
+		}
 		$this->isVisible = $isVisible;
 		return $this;
 	}
-
+	
 	public function getOrder() {
 		if ($this->order == '') {
 			return 0;
 		}
 		return $this->order;
 	}
-
+	
 	public function setOrder($order) {
+		if ($this->order != $order) {
+			$this->_needRefreshWidget = true;
+			$this->_changed = true;
+		}
 		$this->order = $order;
-		$this->_needRefreshWidget = true;
 		return $this;
 	}
-
+	
 	public function getLogicalId() {
 		return $this->logicalId;
 	}
-
-	public function setLogicalId($logicalId) {
-		$this->logicalId = $logicalId;
+	
+	public function setLogicalId($_logicalId) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->logicalId,$_logicalId);
+		$this->logicalId = $_logicalId;
 		return $this;
 	}
-
+	
 	public function getEqType() {
 		return $this->eqType;
 	}
-
-	public function setEqType($eqType) {
-		$this->eqType = $eqType;
+	
+	public function setEqType($_eqType) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->eqType,$_eqType);
+		$this->eqType = $_eqType;
 		return $this;
 	}
-
+	
 	public function getCache($_key = '', $_default = '') {
-		return utils::getJsonAttr(cache::byKey('cmdCacheAttr' . $this->getId())->getValue(), $_key, $_default);
+		$cache = cache::byKey('cmdCacheAttr' . $this->getId())->getValue();
+		return utils::getJsonAttr($cache, $_key, $_default);
 	}
-
+	
 	public function setCache($_key, $_value = null) {
 		cache::set('cmdCacheAttr' . $this->getId(), utils::setJsonAttr(cache::byKey('cmdCacheAttr' . $this->getId())->getValue(), $_key, $_value));
+		return $this;
 	}
-
+	
+	public function getChanged() {
+		return $this->_changed;
+	}
+	
+	public function setChanged($_changed) {
+		$this->_changed = $_changed;
+		return $this;
+	}
+	
 }

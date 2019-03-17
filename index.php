@@ -16,7 +16,7 @@
  * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
  */
 try {
-	if (!file_exists(dirname(__FILE__) . '/core/config/common.config.php')) {
+	if (!file_exists(__DIR__ . '/core/config/common.config.php')) {
 		header("location: install/setup.php");
 	}
 
@@ -37,7 +37,7 @@ try {
 		}
 		die();
 	}
-	require_once dirname(__FILE__) . "/core/php/core.inc.php";
+	require_once __DIR__ . "/core/php/core.inc.php";
 	if (isset($_GET['v']) && $_GET['v'] == 'd') {
 		if (isset($_GET['modal'])) {
 			try {
@@ -59,6 +59,24 @@ try {
 			include_file('plugin_info', 'configuration', 'configuration', init('plugin'));
 		} elseif (isset($_GET['ajax']) && $_GET['ajax'] == 1) {
 			try {
+				$title = 'Jeedom';
+				if (init('m') != '') {
+					try {
+						$plugin = plugin::byId(init('m'));
+						if (is_object($plugin)) {
+							$title = $plugin->getName() . ' - Jeedom';
+						}
+					} catch (Exception $e) {
+
+					} catch (Error $e) {
+
+					}
+				} else if (init('p') != '') {
+					$title = ucfirst(init('p')) . ' - ' . config::byKey('product_name');
+				}
+				echo '<script>';
+				echo 'document.title = "' . $title . '"';
+				echo '</script>';
 				include_file('core', 'authentification', 'php');
 				include_file('desktop', init('p'), 'php', init('m'));
 			} catch (Exception $e) {

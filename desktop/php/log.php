@@ -24,25 +24,32 @@ natcasesort($list_logfile);
 			<ul id="ul_object" class="nav nav-list bs-sidenav">
 				<li class="filter" style="margin-bottom: 5px;"><input class="filter form-control input-sm" placeholder="{{Rechercher}}" style="width: 100%"/></li>
 				<?php
-foreach ($list_logfile as $file) {
-	if ($file == $logfile) {
-		echo '<li class="cursor li_log active" data-log="' . $file . '" ><a>' . $file . '</a></li>';
-	} else {
-		echo '<li class="cursor li_log" data-log="' . $file . '"><a>' . $file . '</a></li>';
-	}
-}
-?>
+				foreach ($list_logfile as $file) {
+					$hasErr = 0;
+					$flag = '<i class="fa fa-check" style="font-weight: bold;float:left;display:inline;margin-top:8px;color:green;"></i>';
+					if (shell_exec('grep -c -E "\[ERROR\]|\[error\]" ' . __DIR__ . '/../../log/' . $file) != 0) {
+						$flag = '<i class="fa fa-exclamation-triangle" style="font-weight: bold;float:left;display:inline;margin-top:8px;color:red;"></i>';
+					} else if (shell_exec('grep -c -E "\[WARNING\]" ' . __DIR__ . '/../../log/' . $file) != 0) {
+						$flag = '<i class="fa fa-exclamation-circle" style="font-weight: bold;float:left;display:inline;margin-top:8px;color:orange;"></i>';
+					}
+					if ($file == $logfile) {
+						echo '<li class="cursor li_log active" data-log="' . $file . '" >' . $flag . '<a>' . $file . ' (' . round(filesize('log/' . $file) / 1024) . ' Ko)</a></li>';
+					} else {
+						echo '<li class="cursor li_log" data-log="' . $file . '">' . $flag . '<a>' . $file . ' (' . round(filesize('log/' . $file) / 1024) . ' Ko)</a></li>';
+					}
+				}
+				?>
 			</ul>
 		</div>
 	</div>
 	<div class="col-lg-10 col-md-9 col-sm-8">
 		<div class="row">
 			<div class="col-lg-12">
-				<a class="btn btn-danger pull-right" id="bt_removeAllLog"><i class="fa fa-trash-o"></i> {{Supprimer tous}}</a>
-				<a class="btn btn-danger pull-right" id="bt_removeLog"><i class="fa fa-trash-o"></i> {{Supprimer}}</a>
-				<a class="btn btn-warning pull-right" id="bt_clearLog"><i class="fa fa-times"></i> {{Vider}}</a>
-				<a class="btn btn-success pull-right" id="bt_downloadLog"><i class="fa fa-cloud-download"></i> {{Télécharger}}</a>
-				<a class="btn btn-warning pull-right" data-state="1" id="bt_globalLogStopStart"><i class="fa fa-pause"></i> {{Pause}}</a>
+				<a class="btn btn-danger pull-right" id="bt_removeAllLog"><i class="far fa-trash-alt"></i> {{Supprimer tous}}</a>
+				<a class="btn btn-danger pull-right" id="bt_removeLog"><i class="far fa-trash-alt"></i> {{Supprimer}}</a>
+				<a class="btn btn-warning pull-right" id="bt_clearLog"><i class="fas fa-times"></i> {{Vider}}</a>
+				<a class="btn btn-success pull-right" id="bt_downloadLog"><i class="fas fa-cloud-download-alt"></i> {{Télécharger}}</a>
+				<a class="btn btn-warning pull-right" data-state="1" id="bt_globalLogStopStart"><i class="fas fa-pause"></i> {{Pause}}</a>
 				<input style="max-width: 150px;" class="form-control pull-right" id="in_globalLogSearch" placeholder="{{Rechercher}}" />
 			</div>
 		</div>

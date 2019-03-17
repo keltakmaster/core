@@ -19,22 +19,24 @@
  if (url.match('#')) {
     $('.nav-tabs a[href="#' + url.split('#')[1] + '"]').tab('show');
 } 
-$('.nav-tabs a').on('shown.bs.tab', function (e) {
+$('.nav-tabs.nav-primary a').on('shown.bs.tab', function (e) {
     window.location.hash = e.target.hash;
 })
 
-$('#div_pageContainer').delegate('.configKey[data-l1key="market::allowDNS"]', 'change', function () {
-    if($(this).value() == 1){
-     $('.configKey[data-l1key=externalProtocol]').attr('disabled',true);
-     $('.configKey[data-l1key=externalAddr]').attr('disabled',true);
-     $('.configKey[data-l1key=externalPort]').attr('disabled',true);
-     $('.configKey[data-l1key=externalAddr]').value('');
-     $('.configKey[data-l1key=externalPort]').value('');
- }else{
-    $('.configKey[data-l1key=externalProtocol]').attr('disabled',false);
-    $('.configKey[data-l1key=externalAddr]').attr('disabled',false);
-    $('.configKey[data-l1key=externalPort]').attr('disabled',false);
-}
+$('#div_pageContainer').delegate('.configKey[data-l1key="market::allowDNS"],.configKey[data-l1key="network::disableMangement"]', 'change', function () {
+    setTimeout(function(){ 
+        if($('.configKey[data-l1key="market::allowDNS"]').value() == 1 && $('.configKey[data-l1key="network::disableMangement"]').value() == 0){
+           $('.configKey[data-l1key=externalProtocol]').attr('disabled',true);
+           $('.configKey[data-l1key=externalAddr]').attr('disabled',true);
+           $('.configKey[data-l1key=externalPort]').attr('disabled',true);
+           $('.configKey[data-l1key=externalAddr]').value('');
+           $('.configKey[data-l1key=externalPort]').value('');
+       }else{
+        $('.configKey[data-l1key=externalProtocol]').attr('disabled',false);
+        $('.configKey[data-l1key=externalAddr]').attr('disabled',false);
+        $('.configKey[data-l1key=externalPort]').attr('disabled',false);
+    }
+}, 100);
 });
 
 
@@ -55,13 +57,19 @@ $('#div_pageContainer').delegate('.configKey[data-l1key="ldap:enable"]', 'change
 });
 
 $('#div_pageContainer').delegate('.configKey[data-l1key="cache::engine"]', 'change', function () {
-   $('.cacheEngine').hide();
-   $('.cacheEngine.'+$(this).value()).show();
+ $('.cacheEngine').hide();
+ if($(this).value() == ''){
+    return;
+  }
+ $('.cacheEngine.'+$(this).value()).show();
 });
 
 $('#div_pageContainer').delegate('.configKey[data-l1key="log::engine"]', 'change', function () {
-   $('.logEngine').hide();
-   $('.logEngine.'+$(this).value()).show();
+ $('.logEngine').hide();
+ if($(this).value() == ''){
+    return;
+  }
+ $('.logEngine.'+$(this).value()).show();
 });
 
 $(".bt_regenerate_api").on('click', function (event) {
@@ -69,7 +77,7 @@ $(".bt_regenerate_api").on('click', function (event) {
     var el = $(this);
     bootbox.confirm('{{Etes-vous sûr de vouloir réinitialiser la clef API de }}'+el.attr('data-plugin')+' ?', function (result) {
         if (result) {
-         $.ajax({
+           $.ajax({
             type: "POST", 
             url: "core/ajax/config.ajax.php",
             data: {
@@ -88,8 +96,8 @@ $(".bt_regenerate_api").on('click', function (event) {
                 el.closest('.input-group').find('.span_apikey').value(data.result);
             }
         });
-     }
- });
+       }
+   });
 });
 
 $('#bt_forceSyncHour').on('click', function () {
@@ -105,45 +113,45 @@ $('#bt_forceSyncHour').on('click', function () {
 });
 
 $('#bt_restartDns').on('click', function () {
- $.hideAlert();
- jeedom.config.save({
+   $.hideAlert();
+   jeedom.config.save({
     configuration: $('#config').getValues('.configKey')[0],
     error: function (error) {
         $('#div_alert').showAlert({message: error.message, level: 'danger'});
     },
     success: function () {
-     jeedom.network.restartDns({
+       jeedom.network.restartDns({
         error: function (error) {
             $('#div_alert').showAlert({message: error.message, level: 'danger'});
         },
         success: function (data) {
-           modifyWithoutSave = false;
-           loadPage('index.php?v=d&p=administration&panel=config_network');
-       }
-   });
- }
+         modifyWithoutSave = false;
+         loadPage('index.php?v=d&p=administration&panel=config_network');
+     }
+ });
+   }
 }); 
 });
 
 
 $('#bt_haltDns').on('click', function () {
- $.hideAlert();
- jeedom.config.save({
+   $.hideAlert();
+   jeedom.config.save({
     configuration: $('#config').getValues('.configKey')[0],
     error: function (error) {
         $('#div_alert').showAlert({message: error.message, level: 'danger'});
     },
     success: function () {
-     jeedom.network.stopDns({
+       jeedom.network.stopDns({
         error: function (error) {
             $('#div_alert').showAlert({message: error.message, level: 'danger'});
         },
         success: function (data) {
-           modifyWithoutSave = false;
-           loadPage('index.php?v=d&p=administration&panel=config_network');
-       }
-   });
- }
+         modifyWithoutSave = false;
+         loadPage('index.php?v=d&p=administration&panel=config_network');
+     }
+ });
+   }
 }); 
 });
 
@@ -162,7 +170,7 @@ $("#bt_clearJeedomLastDate").on('click', function (event) {
     clearJeedomDate();
 });
 
-jwerty.key('ctrl+s', function (e) {
+jwerty.key('ctrl+s/⌘+s', function (e) {
     e.preventDefault();
     $("#bt_saveGeneraleConfig").click();
 });
@@ -296,12 +304,12 @@ function addActionOnMessage(_action) {
     div += '<div class="col-sm-4">';
     div += '<div class="input-group">';
     div += '<span class="input-group-btn">';
-    div += '<a class="btn btn-default bt_removeAction btn-sm"><i class="fa fa-minus-circle"></i></a>';
+    div += '<a class="btn btn-default bt_removeAction btn-sm"><i class="fas fa-minus-circle"></i></a>';
     div += '</span>';
     div += '<input class="expressionAttr form-control input-sm cmdAction" data-l1key="cmd" />';
     div += '<span class="input-group-btn">';
-    div += '<a class="btn btn-default btn-sm listAction" title="{{Sélectionner un mot-clé}}"><i class="fa fa-tasks"></i></a>';
-    div += '<a class="btn btn-default btn-sm listCmdAction"><i class="fa fa-list-alt"></i></a>';
+    div += '<a class="btn btn-default btn-sm listAction" title="{{Sélectionner un mot-clé}}"><i class="fas fa-tasks"></i></a>';
+    div += '<a class="btn btn-default btn-sm listCmdAction"><i class="fas fa-list-alt"></i></a>';
     div += '</span>';
     div += '</div>';
     div += '</div>';
@@ -367,7 +375,7 @@ $('.bt_selectWarnMeCmd').on('click', function () {
 });
 
 if (getUrlVars('panel') != false) {
-   $('a[href="#'+getUrlVars('panel')+'"]').click();
+ $('a[href="#'+getUrlVars('panel')+'"]').click();
 }
 
 printConvertColor();
@@ -393,7 +401,7 @@ $('#div_pageContainer').delegate('.configKey', 'change', function () {
 
 
 $('#bt_resetHour').on('click',function(){
-   $.ajax({
+ $.ajax({
     type: "POST", 
     url: "core/ajax/jeedom.ajax.php", 
     data: {
@@ -414,7 +422,7 @@ $('#bt_resetHour').on('click',function(){
 });
 
 $('#bt_resetHwKey').on('click',function(){
-   $.ajax({
+ $.ajax({
     type: "POST", 
     url: "core/ajax/jeedom.ajax.php", 
     data: {
@@ -493,9 +501,9 @@ function clearJeedomDate() {
 function flushCache() {
   jeedom.cache.flush({
     error: function (error) {
-     $('#div_alert').showAlert({message: data.result, level: 'danger'});
- },
- success: function (data) {
+       $('#div_alert').showAlert({message: data.result, level: 'danger'});
+   },
+   success: function (data) {
     updateCacheStats();
     $('#div_alert').showAlert({message: '{{Cache vidé}}', level: 'success'});
 }
@@ -505,9 +513,9 @@ function flushCache() {
 function cleanCache() {
     jeedom.cache.clean({
         error: function (error) {
-         $('#div_alert').showAlert({message: data.result, level: 'danger'});
-     },
-     success: function (data) {
+           $('#div_alert').showAlert({message: data.result, level: 'danger'});
+       },
+       success: function (data) {
         updateCacheStats();
         $('#div_alert').showAlert({message: '{{Cache nettoyé}}', level: 'success'});
     }
@@ -515,11 +523,11 @@ function cleanCache() {
 }
 
 function updateCacheStats(){
- jeedom.cache.stats({
+   jeedom.cache.stats({
     error: function (error) {
-     $('#div_alert').showAlert({message: data.result, level: 'danger'});
- },
- success: function (data) {
+       $('#div_alert').showAlert({message: data.result, level: 'danger'});
+   },
+   success: function (data) {
     $('#span_cacheObject').html(data.count);
 }
 });
@@ -648,10 +656,15 @@ $('#bt_accessSystemAdministration').on('click',function(){
     $("#md_modal").load('index.php?v=d&modal=system.action').dialog('open');
 });
 
-/**************************SYSTEM***********************************/
+/**************************Database***********************************/
 $('#bt_accessDbAdministration').on('click',function(){
     $('#md_modal').dialog({title: "{{Administration base de données}}"});
     $("#md_modal").load('index.php?v=d&modal=db.action').dialog('open');
+});
+
+$('#bt_checkDatabase').on('click',function(){
+  $('#md_modal').dialog({title: "{{Vérification base de données}}"});
+  $("#md_modal").load('index.php?v=d&modal=db.check').dialog('open');
 });
 
 /**************************Summary***********************************/
@@ -718,7 +731,7 @@ function printObjectSummary() {
             }
             $('#table_objectSummary tbody').empty();
             for (var i in data.result) {
-               if(isset(data.result[i].key) && data.result[i].key == ''){
+             if(isset(data.result[i].key) && data.result[i].key == ''){
                 continue;
             }
             if(!isset(data.result[i].name)){
@@ -750,7 +763,7 @@ function addObjectSummary(_summary) {
     tr += '</select>';
     tr += '</td>';
     tr += '<td>';
-    tr += '<a class="objectSummaryAction btn btn-default btn-sm" data-l1key="chooseIcon"><i class="fa fa-flag"></i> {{Icône}}</a>';
+    tr += '<a class="objectSummaryAction btn btn-default btn-sm" data-l1key="chooseIcon"><i class="fas fa-flag"></i> {{Icône}}</a>';
     tr += '<span class="objectSummaryAttr" data-l1key="icon" style="margin-left : 10px;"></span>';
     tr += '</td>';
     tr += '<td>';
@@ -767,18 +780,18 @@ function addObjectSummary(_summary) {
     tr += '</td>';
     tr += '<td>';
     if(isset(_summary) && isset(_summary.key) && _summary.key != ''){
-        tr += '<a class="btn btn-success btn-sm objectSummaryAction" data-l1key="createVirtual"><i class="fa fa-puzzle-piece"></i> {{Créer virtuel}}</a>';
+        tr += '<a class="btn btn-success btn-sm objectSummaryAction" data-l1key="createVirtual"><i class="fas fa-puzzle-piece"></i> {{Créer virtuel}}</a>';
     }
     tr += '</td>';
     tr += '<td>';
-    tr += '<a class="objectSummaryAction cursor" data-l1key="remove"><i class="fa fa-minus-circle"></i></a>';
+    tr += '<a class="objectSummaryAction cursor" data-l1key="remove"><i class="fas fa-minus-circle"></i></a>';
     tr += '</td>';
     tr += '</tr>';
     $('#table_objectSummary tbody').append(tr);
     if (isset(_summary)){
-       $('#table_objectSummary tbody tr:last').setValues(_summary, '.objectSummaryAttr');
-   }
-   if(isset(_summary) && isset(_summary.key) && _summary.key != ''){
+     $('#table_objectSummary tbody tr:last').setValues(_summary, '.objectSummaryAttr');
+ }
+ if(isset(_summary) && isset(_summary.key) && _summary.key != ''){
     $('#table_objectSummary tbody tr:last .objectSummaryAttr[data-l1key=key]').attr('disabled','disabled');
 }
 modifyWithoutSave = true;

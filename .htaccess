@@ -32,8 +32,13 @@ Options -Indexes
 	php_flag html_errors on
 	php_flag log_errors on
 	php_value error_log  log/http.error
-</IfModule>
 
+	#php_value xdebug.profiler_enable 1
+	php_value xdebug.profiler_output_name callgrind.%t.%s
+	php_value xdebug.profiler_output_dir /tmp
+	php_value xdebug.profiler_enable_trigger 1	
+
+</IfModule>
 <IfModule mod_mime.c>
   AddType image/svg+xml svg svgz
   AddEncoding gzip svgz
@@ -116,6 +121,12 @@ Options -Indexes
 
 <Files ~ ".*\.pyc$">
 	order allow,deny
+	deny from all
+	satisfy all
+</Files>
+
+<Files Dockerfile>
+    order allow,deny
 	deny from all
 	satisfy all
 </Files>

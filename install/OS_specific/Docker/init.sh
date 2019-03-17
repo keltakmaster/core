@@ -17,12 +17,18 @@ if [ ! -z ${APACHE_PORT} ]; then
 	echo 'Change apache listen port to : '${APACHE_PORT}
 	echo "Listen ${APACHE_PORT}" > /etc/apache2/ports.conf
 	sed -i -E "s/\<VirtualHost \*:(.*)\>/VirtualHost \*:${APACHE_PORT}/" /etc/apache2/sites-enabled/000-default.conf
+else
+	echo "Listen 80" > /etc/apache2/ports.conf
+	sed -i -E "s/\<VirtualHost \*:(.*)\>/VirtualHost \*:80/" /etc/apache2/sites-enabled/000-default.conf
 fi	
 
 if [ ! -z ${SSH_PORT} ]; then
 	echo 'Change SSH listen port to : '${APACHE_PORT}
 	sed '/Port /d' /etc/ssh/sshd_config
 	echo "Port ${SSH_PORT}" >> /etc/ssh/sshd_config
+else
+	sed '/Port /d' /etc/ssh/sshd_config
+	echo "Port 22" >> /etc/ssh/sshd_config
 fi
 
 if [ ! -z ${MODE_HOST} ] && [ ${MODE_HOST} -eq 1 ]; then
@@ -35,7 +41,7 @@ if [ -f /var/www/html/core/config/common.config.php ]; then
 else
 	echo 'Start jeedom installation'
 	rm -rf /root/install.sh
-	wget https://raw.githubusercontent.com/jeedom/core/stable/install/install.sh -O /root/install.sh
+	wget https://raw.githubusercontent.com/jeedom/core/master/install/install.sh -O /root/install.sh
 	chmod +x /root/install.sh
 	/root/install.sh -s 6
 fi

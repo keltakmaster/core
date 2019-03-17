@@ -17,14 +17,15 @@
  */
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../php/core.inc.php';
+require_once __DIR__ . '/../php/core.inc.php';
 
 class translate {
 	/*     * *************************Attributs****************************** */
 
-	protected static $translation;
+	protected static $translation = array();
 	protected static $language = null;
 	private static $config = null;
+	private static $pluginLoad = array();
 
 	/*     * ***********************Methode static*************************** */
 
@@ -38,17 +39,33 @@ class translate {
 		return $_default;
 	}
 
-	public static function getTranslation() {
-		if (!isset(self::$translation) || !isset(self::$translation[self::getLanguage()])) {
-			self::$translation = array(
-				self::getLanguage() => self::loadTranslation(),
-			);
+	public static function getTranslation($_plugin) {
+		if (!isset(self::$translation[self::getLanguage()])) {
+			self::$translation[self::getLanguage()] = array();
+		}
+		if (!isset(self::$pluginLoad[$_plugin])) {
+			self::$pluginLoad[$_plugin] = true;
+			self::$translation[self::getLanguage()] = array_merge(self::$translation[self::getLanguage()], self::loadTranslation($_plugin));
 		}
 		return self::$translation[self::getLanguage()];
 	}
 
 	public static function sentence($_content, $_name, $_backslash = false) {
 		return self::exec("{{" . $_content . "}}", $_name, $_backslash);
+	}
+
+	public static function getPluginFromName($_name) {
+		if (strpos($_name, 'plugins/') === false) {
+			return 'core';
+		}
+		preg_match_all('/plugins\/(.*?)\//m', $_name, $matches, PREG_SET_ORDER, 0);
+		if(isset($matches[0]) && isset($matches[0][1])){
+			return $matches[0][1];
+		}
+		if (!isset($matches[1])) {
+			return 'core';
+		}
+		return $matches[1];
 	}
 
 	public static function exec($_content, $_name = '', $_backslash = false) {
@@ -73,7 +90,7 @@ class translate {
 			}
 		}
 		$modify = false;
-		$translate = self::getTranslation();
+		$translate = self::getTranslation(self::getPluginFromName($_name));
 		$replace = array();
 		preg_match_all("/{{(.*?)}}/s", $_content, $matches);
 		foreach ($matches[1] as $text) {
@@ -110,18 +127,24 @@ class translate {
 	}
 
 	public static function getPathTranslationFile($_language) {
-		return dirname(__FILE__) . '/../i18n/' . $_language . '.json';
+		return __DIR__ . '/../i18n/' . $_language . '.json';
 	}
 
-	public static function loadTranslation() {
+	public static function loadTranslation($_plugin = null) {
 		$return = array();
-		$filename = self::getPathTranslationFile(self::getLanguage());
-		if (file_exists($filename)) {
-			$return = file_get_contents($filename);
-			$return = is_json($return) ? json_decode($return, true) : array();
-			foreach (plugin::listPlugin(false, false, false) as $plugin) {
-				$return = array_merge($return, $plugin->getTranslation(self::getLanguage()));
+		if ($_plugin == null || $_plugin == 'core') {
+			$filename = self::getPathTranslationFile(self::getLanguage());
+			if (file_exists($filename)) {
+				$content = file_get_contents($filename);
+				$return = is_json($content, array());
 			}
+		}
+		if ($_plugin == null) {
+			foreach (plugin::listPlugin(true, false, false, true) as $plugin) {
+				$return = array_merge($return, plugin::getTranslation($plugin, self::getLanguage()));
+			}
+		} else {
+			$return = array_merge($return, plugin::getTranslation($_plugin, self::getLanguage()));
 		}
 		return $return;
 	}
@@ -144,8 +167,7 @@ class translate {
 		file_put_contents(self::getPathTranslationFile(self::getLanguage()), json_encode($core, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 		foreach ($plugins as $plugin_name => $translation) {
 			try {
-				$plugin = plugin::byId($plugin_name);
-				$plugin->saveTranslation(self::getLanguage(), $translation);
+				plugin::saveTranslation($plugin_name, self::getLanguage(), $translation);
 			} catch (Exception $e) {
 
 			} catch (Error $e) {

@@ -10,6 +10,7 @@ if (!isConnect('admin')) {
 </style>
 <div id="div_rowSystemCommand" class="row row-overflow">
  <div class="col-lg-2 col-md-3 col-sm-4" style="overflow-y:auto;overflow-x:hidden;">
+  <a class="btn btn-warning" style="width:100%" id="bt_checkDatabase"><i class="fas fa-check"></i> {{Vérification}}</a>
   <div class="bs-sidebar">
    <ul class="nav nav-list bs-sidenav list-group" id='ul_listSqlHistory'></ul>
    <ul class="nav nav-list bs-sidenav list-group" id='ul_listSqlRequest'>
@@ -18,10 +19,10 @@ if (!isConnect('admin')) {
   </ul>
 </div>
 </div>
-<div class="col-lg-10 col-md-9 col-sm-8" style="border-left: solid 1px #EEE; padding-left: 25px;overflow-y:hidden;overflow-x:hidden;">
+<div class="col-lg-10 col-md-9 col-sm-8" style="border-left: solid 1px #EEE;">
   <h3 id="h3_executeCommand">{{Cliquez sur une commande à droite ou tapez une commande personnalisée ci-dessous}}</h3>
-  <input id="in_specificCommand" class="form-control" style="width:90%;display:inline-block;" /> <a id="bt_validateSpecifiCommand" class="btn btn-warning" style="position:relative;top:-2px;"><i class="fa fa-check"></i> {{OK}}</a>
-  <div id="div_commandResult" style="overflow: auto;"></div>
+  <input id="in_specificCommand" class="form-control" style="width:90%;display:inline-block;" /> <a id="bt_validateSpecifiCommand" class="btn btn-warning" style="position:relative;top:-2px;"><i class="fas fa-check"></i> {{OK}}</a>
+  <div id="div_commandResult"></div>
 </div>
 </div>
 <?php include_file("desktop", "database", "js");?>

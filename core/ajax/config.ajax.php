@@ -17,7 +17,7 @@
  */
 
 try {
-	require_once dirname(__FILE__) . '/../../core/php/core.inc.php';
+	require_once __DIR__ . '/../../core/php/core.inc.php';
 	include_file('core', 'authentification', 'php');
 
 	if (!isConnect()) {
@@ -30,6 +30,7 @@ try {
 		if (!isConnect('admin')) {
 			throw new Exception(__('401 - Accès non autorisé', __FILE__));
 		}
+		unautorizedInDemo();
 		if (init('plugin') == 'core') {
 			config::save('api', config::genKey());
 			ajax::success(config::byKey('api'));
@@ -49,11 +50,7 @@ try {
 		}
 		if (is_json($keys)) {
 			$keys = json_decode($keys, true);
-			$configs = config::byKeys(array_keys($keys), init('plugin', 'core'));
-			$return = array();
-			foreach ($keys as $key => $value) {
-				$return[$key] = jeedom::toHumanReadable($configs[$key]);
-			}
+			$return = config::byKeys(array_keys($keys), init('plugin', 'core'));
 			if (init('convertToHumanReadable', 0)) {
 				$return = jeedom::toHumanReadable($return);
 			}
@@ -71,6 +68,7 @@ try {
 		if (!isConnect('admin')) {
 			throw new Exception(__('401 - Accès non autorisé', __FILE__));
 		}
+		unautorizedInDemo();
 		$values = json_decode(init('value'), true);
 		foreach ($values as $key => $value) {
 			config::save($key, jeedom::fromHumanReadable($value), init('plugin', 'core'));
@@ -79,6 +77,7 @@ try {
 	}
 
 	if (init('action') == 'removeKey') {
+		unautorizedInDemo();
 		$keys = init('key');
 		if ($keys == '') {
 			throw new Exception(__('Aucune clef demandée', __FILE__));

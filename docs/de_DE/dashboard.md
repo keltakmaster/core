@@ -14,10 +14,10 @@ Es kann zugegriffen werden, indem Sie auf **Mein Haus → Armaturenbrett** klick
     ein-/auszublenden (dieser zeigt auch die Informationen
     der Objektzusammenfassungen an)
 
--   In der Mitte sind Schaltflächen, mit denen mann verschiedene Gerätetypen 
+-   Au milieu, vous pouvez choisir de ne filtrer que sur certains types
     Filtern kann
 
--   Auf der rechten Seite ist eine Schaltfläche, um in den Bearbeitungsmodus
+-   A droite, un premier bouton pour passer en mode édition, pour par
     zu wechseln z. B. ändern der Reihenfolge der Widgets (mit einem 
     Klick auf das Widget), Sie können auch in diesem Bearbeitungsmodus
     die Größe einiger Widgets ändern und die Reihenfolge der darin enthaltenen 
@@ -34,22 +34,22 @@ Es kann zugegriffen werden, indem Sie auf **Mein Haus → Armaturenbrett** klick
 
 > **Tip**
 >
-> In Ihrem Profil ist es möglich, Jeedom so zu konfigurieren, dass die
-> Baumstruktur der Objekte und/oder der Szenarien standardmäßig
-> angezeigt werden, wenn Sie auf dem Armaturenbrett sind.
+> Il est possible, à partir de votre profil, de configurer Jeedom pour
+> que l’arbre des objets et/ou les scénarios soient visibles par défaut
+> lorsque vous arrivez sur le Dashboard
 
 > **Tip**
 >
-> Auf Mobilgeräten wird durch langes Drücken eines Info Befehlstyps ein
-> Menü angezeigt, in dem Sie den Verlauf der Befehle anzeigen oder einen
-> Alarm auslösen können, damit Jeedom Sie (einmalig) warnen kann dass
-> der Wert eine bestimmte Schwelle überschreitet.
+> En mobile un appui long sur une commande de type info permet
+> d’afficher un menu vous proposant soit d’afficher l’historique de la
+> commande, ou de mettre une alerte sur celle-ci pour que jeedom vous
+> prévienne (une seule fois) dès que la valeur passe un certain seuil
 
 Bearbeitungsmodus
 ============
 
-Im Bearbeitungsmodus können Sie die Größe der Widgets und deren Layout
-im Armaturenbrett ändern.
+En mode édition, vous pouvez changer la taille des widgets et leur
+disposition sur le dashboard.
 
 Sie können auch das interne Layout der Widget Befehle bearbeiten :
 
@@ -63,7 +63,7 @@ Sie können auch das interne Layout der Widget Befehle bearbeiten :
     -   **Standard** : Standard-Layout, alles ist automatisch, nur mit der Möglichkeit, 
         die Reihenfolge der Befehle neu zu ordnen
 
-    -   **Tabelle** : ermöglicht die Befehle in eine Tabelle anzuordnen,
+    -   **Tableau** : permet de mettre les commandes dans un tableau :
         Spalten und Zeilen werden hinzugefügt und gelöscht durch Rechtsklick,
         dann können Sie einfach die Befehle in der Kachel verschieben.
         Sie können mehrere Befehle pro Kachel einsetzen.

@@ -1,55 +1,56 @@
 <?php
 
 /* This file is part of Jeedom.
- *
- * Jeedom is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Jeedom is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
- */
+*
+* Jeedom is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* Jeedom is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../../core/php/core.inc.php';
+require_once __DIR__ . '/../../core/php/core.inc.php';
 
 class planHeader {
 	/*     * *************************Attributs****************************** */
-
+	
 	private $id;
 	private $name;
 	private $image;
 	private $configuration;
-
+	private $_changed = false;
+	
 	/*     * ***********************Méthodes statiques*************************** */
-
+	
 	public static function byId($_id) {
 		$values = array(
 			'id' => $_id,
 		);
 		$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-                FROM planHeader
-                WHERE id=:id';
+		FROM planHeader
+		WHERE id=:id';
 		return DB::Prepare($sql, $values, DB::FETCH_TYPE_ROW, PDO::FETCH_CLASS, __CLASS__);
 	}
-
+	
 	public static function all() {
 		$sql = 'SELECT ' . DB::buildField(__CLASS__) . '
-                FROM planHeader';
+		FROM planHeader';
 		return DB::Prepare($sql, array(), DB::FETCH_TYPE_ALL, PDO::FETCH_CLASS, __CLASS__);
 	}
 	/**
-	 *
-	 * @param type $_type
-	 * @param type $_id
-	 * @return type
-	 */
+	*
+	* @param type $_type
+	* @param type $_id
+	* @return type
+	*/
 	public static function searchByUse($_type, $_id) {
 		$return = array();
 		$search = '#' . str_replace('cmd', '', $_type . $_id) . '#';
@@ -60,16 +61,19 @@ class planHeader {
 		}
 		return $return;
 	}
-
+	
 	/*     * *********************Méthodes d'instance************************* */
-
+	
 	public function report($_format = 'pdf', $_parameters = array()) {
 		$url = network::getNetworkAccess('internal') . '/index.php?v=d&p=plan';
 		$url .= '&plan_id=' . $this->getId();
 		$url .= '&report=1';
+		if (isset($_parameters['arg']) && trim($_parameters['arg']) != '') {
+			$url .= '&' . $_parameters['arg'];
+		}
 		return report::generate($url, 'plan', $this->getId(), $_format, $_parameters);
 	}
-
+	
 	public function copy($_name) {
 		$planHeaderCopy = clone $this;
 		$planHeaderCopy->setName($_name);
@@ -81,9 +85,14 @@ class planHeader {
 			$planCopy->setPlanHeader_id($planHeaderCopy->getId());
 			$planCopy->save();
 		}
+		$filename1 = 'planHeader'.$this->getId().'-'.$this->getImage('sha512') . '.' . $this->getImage('type');
+		if(file_exists(__DIR__.'/../../data/plan/'.$filename1)){
+			$filename2 = 'planHeader'.$planHeaderCopy->getId().'-'.$planHeaderCopy->getImage('sha512') . '.' . $planHeaderCopy->getImage('type');
+			copy(__DIR__.'/../../data/plan/'.$filename1,__DIR__.'/../../data/plan/'.$filename2);
+		}
 		return $planHeaderCopy;
 	}
-
+	
 	public function preSave() {
 		if (trim($this->getName()) == '') {
 			throw new Exception(__('Le nom du plan ne peut pas être vide', __FILE__));
@@ -101,40 +110,29 @@ class planHeader {
 			$this->setConfiguration('backgroundColor', '#ffffff');
 		}
 	}
-
+	
 	public function save() {
 		DB::save($this);
 	}
-
+	
 	public function remove() {
+		jeedom::addRemoveHistory(array('id' => $this->getId(), 'name' => $this->getName(), 'date' => date('Y-m-d H:i:s'), 'type' => 'plan'));
 		DB::remove($this);
 	}
-
+	
 	public function displayImage() {
-		if ($this->getImage('data') == '') {
+		if ($this->getImage('sha512') == '') {
 			return '';
 		}
-		$dir = dirname(__FILE__) . '/../../core/img/plan';
-		if (!file_exists($dir)) {
-			mkdir($dir);
-		}
-		if ($this->getImage('sha512') == '') {
-			$this->setImage('sha512', sha512($this->getImage('data')));
-			$this->save();
-		}
-		$filename = $this->getImage('sha512') . '.' . $this->getImage('type');
-		$filepath = $dir . '/' . $filename;
-		if (!file_exists($filepath)) {
-			file_put_contents($filepath, base64_decode($this->getImage('data')));
-		}
 		$size = $this->getImage('size');
-		return '<img style="z-index:997" src="core/img/plan/' . $filename . '" data-sixe_y="' . $size[1] . '" data-sixe_x="' . $size[0] . '">';
+		$filename = 'planHeader'.$this->getId().'-'.$this->getImage('sha512') . '.' . $this->getImage('type');
+		return '<img style="z-index:997" src="data/plan/' . $filename . '" data-sixe_y="' . $size[1] . '" data-sixe_x="' . $size[0] . '">';
 	}
-
+	
 	public function getPlan() {
 		return plan::byPlanHeaderId($this->getId());
 	}
-
+	
 	public function getLinkData(&$_data = array('node' => array(), 'link' => array()), $_level = 0, $_drill = 3) {
 		if (isset($_data['node']['plan' . $this->getId()])) {
 			return;
@@ -157,48 +155,61 @@ class planHeader {
 			'url' => 'index.php?v=d&p=plan&view_id=' . $this->getId(),
 		);
 	}
-
+	
 	/*     * **********************Getteur Setteur*************************** */
-
+	
 	public function getId() {
 		return $this->id;
 	}
-
+	
 	public function getName() {
 		return $this->name;
 	}
-
-	public function setId($id) {
-		$this->id = $id;
+	
+	public function setId($_id) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->id,$_id);
+		$this->id = $_id;
 		return $this;
 	}
-
-	public function setName($name) {
-		$this->name = $name;
+	
+	public function setName($_name) {
+		$this->_changed = utils::attrChanged($this->_changed,$this->name,$_name);
+		$this->name = $_name;
 		return $this;
 	}
-
+	
 	public function getImage($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->image, $_key, $_default);
 	}
-
+	
 	public function setImage($_key, $_value) {
-		$this->image = utils::setJsonAttr($this->image, $_key, $_value);
+		$image = utils::setJsonAttr($this->image, $_key, $_value);
+		$this->_changed = utils::attrChanged($this->_changed,$this->image,$image);
+		$this->image = $image;
 		return $this;
 	}
-
+	
 	public function getConfiguration($_key = '', $_default = '') {
 		return utils::getJsonAttr($this->configuration, $_key, $_default);
 	}
-
+	
 	public function setConfiguration($_key, $_value) {
-		if ($_key == 'accessCode' && $_value != '') {
-			if (!is_sha512($_value)) {
-				$_value = sha512($_value);
-			}
+		if ($_key == 'accessCode' && $_value != '' && !is_sha512($_value)) {
+			$_value = sha512($_value);
 		}
-		$this->configuration = utils::setJsonAttr($this->configuration, $_key, $_value);
+		$configuration = utils::setJsonAttr($this->configuration, $_key, $_value);
+		$this->_changed = utils::attrChanged($this->_changed,$this->configuration,$configuration);
+		$this->configuration =$configuration;
 		return $this;
 	}
-
+	
+	public function getChanged() {
+		return $this->_changed;
+	}
+	
+	public function setChanged($_changed) {
+		$this->_changed = $_changed;
+		return $this;
+	}
+	
 }

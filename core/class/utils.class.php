@@ -1,29 +1,44 @@
 <?php
 
 /* This file is part of Jeedom.
- *
- * Jeedom is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Jeedom is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
- */
+*
+* Jeedom is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* Jeedom is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../php/core.inc.php';
+require_once __DIR__ . '/../php/core.inc.php';
 
 class utils {
 	/*     * *************************Attributs****************************** */
-
+	
+	private static $properties = array();
+	
 	/*     * ***********************Methode static*************************** */
-
+	
+	public static function attrChanged($_changed,$_old,$_new){
+		if($_changed){
+			return true;
+		}
+		if(is_array($_old)){
+			$_old = json_encode($_old);
+		}
+		if(is_array($_new)){
+			$_new = json_encode($_new);
+		}
+		return ($_old != $_new);
+	}
+	
 	public static function o2a($_object, $_noToArray = false) {
 		if (is_array($_object)) {
 			$return = array();
@@ -39,17 +54,11 @@ class utils {
 		if (!$_noToArray && method_exists($_object, 'toArray')) {
 			return $_object->toArray();
 		}
-		$reflections = array();
-		$uuid = spl_object_hash($_object);
-		if (!class_exists(get_class($_object))) {
-			return array();
+		$class = get_class($_object);
+		if (!isset(self::$properties[$class])) {
+			self::$properties[$class] = (new ReflectionClass($class))->getProperties();
 		}
-		if (!isset($reflections[$uuid])) {
-			$reflections[$uuid] = new ReflectionClass($_object);
-		}
-		$reflection = $reflections[$uuid];
-		$properties = $reflection->getProperties();
-		foreach ($properties as $property) {
+		foreach (self::$properties[$class] as $property) {
 			$name = $property->getName();
 			if ('_' !== $name[0]) {
 				$method = 'get' . ucfirst($name);
@@ -60,25 +69,19 @@ class utils {
 					$value = $property->getValue($_object);
 					$property->setAccessible(false);
 				}
-				if (is_json($value)) {
-					$array[$name] = json_decode($value, true);
-				} else {
-					$array[$name] = $value;
-				}
+				$array[$name] = ($value === null) ? null : is_json($value, $value);
 			}
 		}
 		return $array;
 	}
-
+	
 	public static function a2o(&$_object, $_data) {
 		if (is_array($_data)) {
 			foreach ($_data as $key => $value) {
 				$method = 'set' . ucfirst($key);
 				if (method_exists($_object, $method)) {
 					$function = new ReflectionMethod($_object, $method);
-					if (is_json($value)) {
-						$value = json_decode($value, true);
-					}
+					$value = is_json($value, $value);
 					if (is_array($value)) {
 						if ($function->getNumberOfRequiredParameters() == 2) {
 							foreach ($value as $arrayKey => $arrayValue) {
@@ -104,7 +107,7 @@ class utils {
 			}
 		}
 	}
-
+	
 	public static function processJsonObject($_class, $_ajaxList, $_dbList = null) {
 		if (!is_array($_ajaxList)) {
 			if (is_json($_ajaxList)) {
@@ -119,7 +122,7 @@ class utils {
 			}
 			$_dbList = $_class::all();
 		}
-
+		
 		$enableList = array();
 		foreach ($_ajaxList as $ajaxObject) {
 			$object = $_class::byId($ajaxObject['id']);
@@ -136,46 +139,58 @@ class utils {
 			}
 		}
 	}
-
+	
 	public static function setJsonAttr($_attr, $_key, $_value = null) {
 		if ($_value === null && !is_array($_key)) {
-			if ($_attr != '' && is_json($_attr)) {
-				$attr = json_decode($_attr, true);
-				unset($attr[$_key]);
-				$_attr = json_encode($attr, JSON_UNESCAPED_UNICODE);
+			if (!is_array($_attr)) {
+				$_attr = is_json($_attr, array());
 			}
+			unset($_attr[$_key]);
 		} else {
-			if ($_attr == '' || !is_json($_attr)) {
-				$attr = array();
-			} else {
-				$attr = json_decode($_attr, true);
+			if (!is_array($_attr)) {
+				$_attr = is_json($_attr, array());
 			}
 			if (is_array($_key)) {
-				$attr = array_merge($attr, $_key);
+				$_attr = array_merge($_attr, $_key);
 			} else {
-				$attr[$_key] = $_value;
+				$_attr[$_key] = $_value;
 			}
-			$_attr = json_encode($attr, JSON_UNESCAPED_UNICODE);
 		}
 		return $_attr;
 	}
-
-	public static function getJsonAttr($_attr, $_key = '', $_default = '') {
-		if ($_key == '') {
-			if ($_attr == '' || !is_json($_attr)) {
+	
+	public static function getJsonAttr(&$_attr, $_key = '', $_default = '') {
+		if (is_array($_attr)) {
+			if ($_key == '') {
 				return $_attr;
 			}
-			return json_decode($_attr, true);
+		} else {
+			if ($_key == '') {
+				return is_json($_attr, array());
+			}
+			if ($_attr === '') {
+				if (is_array($_key)) {
+					foreach ($_key as $key) {
+						$return[$key] = $_default;
+					}
+					return $return;
+				}
+				return $_default;
+			}
+			$_attr = json_decode($_attr, true);
 		}
-		if ($_attr === '') {
-			return $_default;
+		if (is_array($_key)) {
+			$return = array();
+			foreach ($_key as $key) {
+				$return[$key] = (isset($_attr[$key]) && $_attr[$key] !== '') ? $_attr[$key] : $_default;
+			}
+			return $return;
 		}
-		$attr = json_decode($_attr, true);
-		return (isset($attr[$_key]) && $attr[$_key] !== '') ? $attr[$_key] : $_default;
+		return (isset($_attr[$_key]) && $_attr[$_key] !== '') ? $_attr[$_key] : $_default;
 	}
-
+	
 	/*     * *********************Methode d'instance************************* */
-
+	
 	/*     * **********************Getteur Setteur*************************** */
 }
 

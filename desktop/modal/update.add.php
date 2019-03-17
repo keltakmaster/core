@@ -10,8 +10,8 @@ $repos = update::listRepo();
  <form class="form-horizontal">
  	<fieldset>
  		<div class="form-group">
- 			<label class="col-lg-2 col-md-3 col-sm-4 col-xs-6 control-label">{{Type de source}}</label>
- 			<div class="col-sm-4">
+ 			<label class="col-lg-4 control-label">{{Type de source}}</label>
+ 			<div class="col-lg-8">
  				<select class="updateAttr form-control" data-l1key="source">
  					<option value="nothing">{{Aucun}}</option>
  					<?php
@@ -54,19 +54,19 @@ foreach ($repos as $key => $value) {
 	}
 	echo '<div class="repoSource repo_' . $key . '" style="display:none;">';
 	echo '<div class="form-group">';
-	echo '<label class="col-lg-2 col-md-3 col-sm-4 col-xs-6 control-label">';
+	echo '<label class="col-lg-4 control-label">';
 	echo '{{ID logique du plugin}}';
 	echo '</label>';
-	echo '<div class="col-sm-4">';
+	echo '<div class="col-lg-8">';
 	echo '<input class="updateAttr form-control" data-l1key="logicalId" />';
 	echo '</div>';
 	echo '</div>';
 	foreach ($value['configuration']['parameters_for_add'] as $pKey => $parameter) {
 		echo '<div class="form-group">';
-		echo '<label class="col-lg-2 col-md-3 col-sm-4 col-xs-6 control-label">';
+		echo '<label class="col-lg-4">';
 		echo $parameter['name'];
 		echo '</label>';
-		echo '<div class="col-sm-4">';
+		echo '<div class="col-lg-8">';
 		$default = (isset($parameter['default'])) ? $parameter['default'] : '';
 		switch ($parameter['type']) {
 			case 'input':
@@ -78,7 +78,7 @@ foreach ($repos as $key => $value) {
 			case 'file':
 				echo '<input class="updateAttr form-control" data-l1key="configuration" data-l2key="' . $pKey . '" style="display:none;" />';
 				echo '<span class="btn btn-default btn-file">';
-				echo '<i class="fa fa-cloud-upload"></i> {{Envoyer un plugin}}<input id="bt_uploadPlugin" data-key="' . $pKey . '" type="file" name="file" data-url="core/ajax/update.ajax.php?action=preUploadFile&jeedom_token=' . ajax::getToken() . '" style="display : inline-block;">';
+				echo '<i class="fas fa-cloud-upload-alt"></i> {{Envoyer un plugin}}<input id="bt_uploadPlugin" data-key="' . $pKey . '" type="file" name="file" data-url="core/ajax/update.ajax.php?action=preUploadFile&jeedom_token=' . ajax::getToken() . '" style="display : inline-block;">';
 				echo '</span>';
 				break;
 		}
@@ -89,7 +89,7 @@ foreach ($repos as $key => $value) {
 	echo '</div>';
 }
 ?>
- 		<a class="btn btn-success pull-right" id="bt_repoAddSaveUpdate"><i class="fa fa-check-circle"></i> {{Enregistrer}}</a>
+ 		<a class="btn btn-success pull-right" id="bt_repoAddSaveUpdate"><i class="far fa-check-circle"></i> {{Enregistrer}}</a>
  	</fieldset>
  </form>
 

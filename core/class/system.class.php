@@ -32,8 +32,8 @@ class system {
 	/*     * ***********************Methode static*************************** */
 
 	public static function loadCommand() {
-		if (file_exists(dirname(__FILE__) . '/../../config/system_cmd.json')) {
-			$content = file_get_contents(dirname(__FILE__) . '/../../config/system_cmd.json');
+		if (file_exists(__DIR__ . '/../../config/system_cmd.json')) {
+			$content = file_get_contents(__DIR__ . '/../../config/system_cmd.json');
 			if (is_json($content)) {
 				self::$_command['custom'] = json_decode($content, true);
 			}
@@ -63,10 +63,21 @@ class system {
 	}
 
 	public static function get($_key = '') {
-		if (!isset(self::$_command[self::getDistrib()][$_key])) {
-			return '';
+		$return = '';
+		if (isset(self::$_command[self::getDistrib()]) && isset(self::$_command[self::getDistrib()][$_key])) {
+			$return = self::$_command[self::getDistrib()][$_key];
 		}
-		return self::$_command[self::getDistrib()][$_key];
+		if ($return == '') {
+			if ($_key == 'www-uid') {
+				$processUser = posix_getpwuid(posix_geteuid());
+				$return = $processUser['name'];
+			}
+			if ($_key == 'www-gid') {
+				$processGroup = posix_getgrgid(posix_getegid());
+				$return = $processGroup['name'];
+			}
+		}
+		return $return;
 	}
 
 	public static function getCmdSudo() {

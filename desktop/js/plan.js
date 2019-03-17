@@ -37,7 +37,7 @@ for(var i in planHeader){
         }
     }
 }
-if(deviceInfo.type == 'desktop'  && user_isAdmin == 1){
+if(deviceInfo.type == 'desktop' && user_isAdmin == 1){
     $.contextMenu({
         selector: '#div_pageContainer',
         zIndex: 9999,
@@ -516,12 +516,12 @@ $('#div_pageContainer').delegate('.plan-link-widget', 'click', function () {
 $('#div_pageContainer').on( 'click','.zone-widget:not(.zoneEqLogic)', function () {
     var el = $(this);
     if (!editOption.state) {
-        el.append('<center class="loading"><i class="fa fa-spinner fa-spin fa-4x"></i></center>');
+        el.append('<center class="loading"><i class="fas fa-spinner fa-spin fa-4x"></i></center>');
         jeedom.plan.execute({
             id: el.attr('data-plan_id'),
             error: function (error) {
                 $('#div_alert').showAlert({message: error.message, level: 'danger'});
-                el.empty().append('<center class="loading"><i class="fa fa-times fa-4x"></i></center>');
+                el.empty().append('<center class="loading"><i class="fas fa-times fa-4x"></i></center>');
                 setTimeout(function() {
                    el.empty();
                    clickedOpen = false;
@@ -594,7 +594,7 @@ $(document).click(function(event) {
  }
 });
 
-jwerty.key('ctrl+s', function (e) {
+jwerty.key('ctrl+s/⌘+s', function (e) {
     e.preventDefault();
     savePlan();
 });
@@ -633,7 +633,7 @@ function createNewDesign(){
                     $('#div_alert').showAlert({message: error.message, level: 'danger'});
                 },
                 success: function (data) {
-                    loadPage('index.php?v=d&p=plan&plan_id=' + data.id);
+                    window.location = 'index.php?v=d&p=plan&plan_id=' + data.id;
                 }
             });
         }
@@ -768,7 +768,6 @@ function displayPlan(_code) {
             if (isset(data.image)) {
                 $('.div_displayObject').append(data.image);
             }
-            $('.div_backgroundPlan').height($('body').height());
             if (isset(data.configuration.backgroundTransparent) && data.configuration.backgroundTransparent == 1) {
                 $('.div_backgroundPlan').css('background-color','transparent');
             }else if (isset(data.configuration.backgroundColor)) {
@@ -782,6 +781,11 @@ function displayPlan(_code) {
             } else {
                 $('.div_displayObject').width($('.div_displayObject img').attr('data-sixe_x')).height($('.div_displayObject img').attr('data-sixe_y'));
                 $('.div_displayObject img').css('height', ($('.div_displayObject img').attr('data-sixe_y')) + 'px').css('width', ($('.div_displayObject img').attr('data-sixe_x')) + 'px');
+            }
+            if($('body').height() > $('.div_displayObject').height()){
+              $('.div_backgroundPlan').height($('body').height());
+            }else{
+              $('.div_backgroundPlan').height($('.div_displayObject').height());
             }
             $('.div_grid').width($('.div_displayObject').width()).height($('.div_displayObject').height());
             if(deviceInfo.type != 'desktop'){

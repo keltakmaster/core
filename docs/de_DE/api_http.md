@@ -50,22 +50,23 @@ Hier ist die URL =
 -   **id** : Entspricht der ID, was Sie steuern oder von dem Sie 
     Informationen erhalten möchten
 
-Der einfachste Weg, um diese URL zu erhalten, ist auf die Seite Werkzeuge →
-Übersicht Haus-Automatisierung zu gehen, suchen Sie nach dem Befehl und
-dann öffnen sie seine erweiterte Konfiguration (das "Zahnrad"-Symbol). Dort sehen Sie eine URL, die basierend auf dem Typ und Subtyp des Befehls
-bereits alles enthält, was Sie benötigen.
+Le plus simple pour avoir cette URL est d’aller sur la page Outils →
+Résumé domotique, de chercher la commande puis d’ouvrir sa configuration
+avancée (l’icône "engrenage") et là, vous allez voir une URL qui contient
+déjà tout ce qu’il faut en fonction du type et du sous-type de la
+commande.
 
-> **Notiz**
+> **Note**
 >
-> Es ist möglich, dass dem Feld \#ID# mehrere Befehle gleichzeitig
-> übergeben werden. Dazu muss ein Array in json übergeben werden (zB.
-> %5B12,58,23%5D, beachten Sie, dass [und] von dem aus codiert werden
-> muß %5B und %5D). Die Rückgabe von Jeedom wird in JSON efolgen.
+> Il est possible pour le champs \#ID\# de passer plusieurs commandes
+> d’un coup. Pour cela, il faut passer un tableau en json (ex
+> %5B12,58,23%5D, à noter que \[ et \] doivent être encodés d’où les %5B
+> et %5D). Le retour de Jeedom sera un json
 
-> **Notiz**
+> **Note**
 >
-> Die Parameter müssen für die URL kodiert werden, Sie können dieses
-> Werkzeug benutzen, [hier](https://meyerweb.com/eric/tools/dencoder/)
+> Les paramètres doivent être encodés pour les url, Vous pouvez utiliser
+> un outil, [ici](https://meyerweb.com/eric/tools/dencoder/)
 
 Interaktion
 ===========

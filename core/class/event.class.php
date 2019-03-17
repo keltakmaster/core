@@ -17,7 +17,7 @@
  */
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../../core/php/core.inc.php';
+require_once __DIR__ . '/../../core/php/core.inc.php';
 
 class event {
 	/*     * *************************Attributs****************************** */
@@ -45,7 +45,7 @@ class event {
 				$value = array();
 			}
 			$value[] = array('datetime' => getmicrotime(), 'name' => $_event, 'option' => $_option);
-			cache::set('event', json_encode(array_slice($value, -self::$limit, self::$limit)));
+			cache::set('event', json_encode(self::cleanEvent($value)));
 			flock($fd, LOCK_UN);
 		}
 	}
@@ -63,9 +63,37 @@ class event {
 			foreach ($_values as $option) {
 				$value[] = array('datetime' => getmicrotime(), 'name' => $_event, 'option' => $option);
 			}
-			cache::set('event', json_encode(array_slice(array_merge($value_src, $value), -self::$limit, self::$limit)));
+			cache::set('event', json_encode(self::cleanEvent(array_merge($value_src, $value))));
 			flock($fd, LOCK_UN);
 		}
+	}
+
+	public static function cleanEvent($_events) {
+		$_events = array_slice(array_values($_events), -self::$limit, self::$limit);
+		$find = array();
+		foreach (array_values($_events) as $key => $event) {
+			if ($event['name'] == 'eqLogic::update') {
+				$id = $event['name'] . '::' . $event['option']['eqLogic_id'];
+			} elseif ($event['name'] == 'cmd::update') {
+				$id = $event['name'] . '::' . $event['option']['cmd_id'];
+			} elseif ($event['name'] == 'scenario::update') {
+				$id = $event['name'] . '::' . $event['option']['scenario_id'];
+			} elseif ($event['name'] == 'jeeObject::summary::update') {
+				$id = $event['name'] . '::' . $event['option']['object_id'];
+			} else {
+				continue;
+			}
+			if ($id != '' && isset($find[$id]) && $find[$id] > $event['datetime']) {
+				unset($_events[$key]);
+				continue;
+			}
+			$find[$id] = $event['datetime'];
+		}
+		return array_values($_events);
+	}
+
+	public static function orderEvent($a, $b) {
+		return ($a['datetime'] - $b['datetime']);
 	}
 
 	public static function changes($_datetime, $_longPolling = null, $_filter = null) {
@@ -93,10 +121,10 @@ class event {
 		if ($_filter === null) {
 			return $_data;
 		}
-		$filters = cache::byKey($_filter . '::event')->getValue(array());
+		$filters = ($_filter !== null) ? cache::byKey($_filter . '::event')->getValue(array()) : array();
 		$return = array('datetime' => $_data['datetime'], 'result' => array());
 		foreach ($_data['result'] as $value) {
-			if (isset($_filter::$_listenEvents) && !in_array($value['name'], $_filter::$_listenEvents)) {
+			if ($_filter !== null && isset($_filter::$_listenEvents) && !in_array($value['name'], $_filter::$_listenEvents)) {
 				continue;
 			}
 			if (count($filters) != 0 && $value['name'] == 'cmd::update' && !in_array($value['option']['cmd_id'], $filters)) {

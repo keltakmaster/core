@@ -17,7 +17,7 @@
  */
 
 /* * ***************************Includes********************************* */
-require_once dirname(__FILE__) . '/../../core/php/core.inc.php';
+require_once __DIR__ . '/../../core/php/core.inc.php';
 
 class cache {
 	/*     * *************************Attributs****************************** */
@@ -33,11 +33,7 @@ class cache {
 	/*     * ***********************Methode static*************************** */
 
 	public static function getFolder() {
-		$return = jeedom::getTmpFolder('cache');
-		if (!file_exists($return)) {
-			mkdir($return, 0777);
-		}
-		return $return;
+		return jeedom::getTmpFolder('cache');
 	}
 
 	public static function set($_key, $_value, $_lifetime = 0, $_options = null) {
@@ -64,7 +60,8 @@ class cache {
 	public static function stats($_details = false) {
 		$return = self::getCache()->getStats();
 		$return['count'] = __('Inconnu', __FILE__);
-		if (config::byKey('cache::engine') == 'FilesystemCache') {
+		$engine = config::byKey('cache::engine');
+		if ($engine == 'FilesystemCache') {
 			$return['count'] = 0;
 			foreach (ls(self::getFolder()) as $folder) {
 				foreach (ls(self::getFolder() . '/' . $folder) as $file) {
@@ -74,6 +71,8 @@ class cache {
 					$return['count']++;
 				}
 			}
+		} else if($engine == 'RedisCache') {
+			$return['count'] = self::$cache->getRedis()->dbSize();
 		}
 		if ($_details) {
 			$re = '/s:\d*:(.*?);s:\d*:"(.*?)";s/';
@@ -178,7 +177,13 @@ class cache {
 				return;
 		}
 		try {
-			com_shell::execute('rm -rf ' . dirname(__FILE__) . '/../../cache.tar.gz;cd ' . $cache_dir . ';tar cfz ' . dirname(__FILE__) . '/../../cache.tar.gz * 2>&1 > /dev/null;chmod 775 ' . dirname(__FILE__) . '/../../cache.tar.gz;chown ' . system::get('www-uid') . ':' . system::get('www-gid') . ' ' . dirname(__FILE__) . '/../../cache.tar.gz;chmod 777 -R ' . $cache_dir . ' 2>&1 > /dev/null');
+			$cmd = system::getCmdSudo() . 'rm -rf ' . __DIR__ . '/../../cache.tar.gz;cd ' . $cache_dir . ';';
+			$cmd .= system::getCmdSudo() . 'tar cfz ' . __DIR__ . '/../../cache.tar.gz * 2>&1 > /dev/null;';
+			$cmd .= system::getCmdSudo() . 'chmod 774 ' . __DIR__ . '/../../cache.tar.gz;';
+			$cmd .= system::getCmdSudo() . 'chown ' . system::get('www-uid') . ':' . system::get('www-gid') . ' ' . __DIR__ . '/../../cache.tar.gz;';
+			$cmd .= system::getCmdSudo() . 'chown -R ' . system::get('www-uid') . ':' . system::get('www-gid') . ' ' . $cache_dir . ';';
+			$cmd .= system::getCmdSudo() . 'chmod 774 -R ' . $cache_dir . ' 2>&1 > /dev/null';
+			com_shell::execute($cmd);
 		} catch (Exception $e) {
 
 		}
@@ -189,7 +194,7 @@ class cache {
 		if (config::byKey('cache::engine') != 'FilesystemCache' && config::byKey('cache::engine') != 'PhpFileCache') {
 			return true;
 		}
-		$filename = dirname(__FILE__) . '/../../cache.tar.gz';
+		$filename = __DIR__ . '/../../cache.tar.gz';
 		if (!file_exists($filename)) {
 			return false;
 		}
@@ -210,7 +215,7 @@ class cache {
 			default:
 				return;
 		}
-		if (!file_exists(dirname(__FILE__) . '/../../cache.tar.gz')) {
+		if (!file_exists(__DIR__ . '/../../cache.tar.gz')) {
 			$cmd = 'mkdir ' . $cache_dir . ';';
 			$cmd .= 'chmod -R 777 ' . $cache_dir . ';';
 			com_shell::execute($cmd);
@@ -219,7 +224,7 @@ class cache {
 		$cmd = 'rm -rf ' . $cache_dir . ';';
 		$cmd .= 'mkdir ' . $cache_dir . ';';
 		$cmd .= 'cd ' . $cache_dir . ';';
-		$cmd .= 'tar xfz ' . dirname(__FILE__) . '/../../cache.tar.gz;';
+		$cmd .= 'tar xfz ' . __DIR__ . '/../../cache.tar.gz;';
 		$cmd .= 'chmod -R 777 ' . $cache_dir . ' 2>&1 > /dev/null;';
 		com_shell::execute($cmd);
 	}

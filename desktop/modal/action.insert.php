@@ -7,6 +7,7 @@ if (!isConnect()) {
     <select id="mod_actionValue_sel" class="form-control">
         <option value="sleep">{{Pause}}</option>
         <option value="variable">{{Variable}}</option>
+	<option value="delete_variable">{{Supprimer une variable}}</option>
         <option value="scenario">{{Scénario}}</option>
         <option value="stop" class="scenarioOnly">{{Stop}}</option>
         <option value="wait">{{Attendre}}</option>
@@ -16,12 +17,15 @@ if (!isConnect()) {
         <option value="equipement">{{Activer/Désactiver Masquer/Afficher un équipement}}</option>
         <option value="ask">{{Faire une demande}}</option>
         <option value="jeedom_poweroff">{{Arrêter}} <?php echo config::byKey('product_name'); ?></option>
+        <option value="jeedom_reboot">{{Redémarrer}} <?php echo config::byKey('product_name'); ?></option>
         <option value="scenario_return" class="scenarioOnly">{{Retourner un texte/une donnée}}</option>
         <option value="icon" class="scenarioOnly">{{Icône}}</option>
         <option value="alert">{{Alerte}}</option>
         <option value="popup">{{Pop-up}}</option>
         <option value="report">{{Rapport}}</option>
         <option value="remove_inat">{{Supprimer bloc DANS/A programmé}}</option>
+        <option value="event">{{Evènement}}</option>
+        <option value="tag">{{Tag}}</option>
     </select>
 </center>
 <br/>
@@ -37,6 +41,10 @@ if (!isConnect()) {
     {{Création/modification d’une variable ou de la valeur d’une variable}}
 </div>
 
+<div class="alert alert-info mod_actionValue_selDescription delete_variable" style="display:none;">
+    {{Suppression d’une variable}}
+</div>
+
 <div class="alert alert-info mod_actionValue_selDescription scenario" style="display:none;">
     {{Permet le contrôle des scénarios}}
 </div>
@@ -46,7 +54,7 @@ if (!isConnect()) {
 </div>
 
 <div class="alert alert-info mod_actionValue_selDescription say" style="display:none;">
-    {{Permet de faire dire un texte à Jeedom (ne marche que si un onglet}} <?php echo config::byKey('product_name'); ?> {{est ouvert dans le navigateur)}}
+    {{Permet de faire dire un texte à}} <?php echo config::byKey('product_name'); ?> {{(ne marche que si un onglet Jeedom est ouvert dans le navigateur)}}
 </div>
 
 <div class="alert alert-info mod_actionValue_selDescription gotodesign" style="display:none;">
@@ -73,6 +81,10 @@ if (!isConnect()) {
     {{Envoi l'ordre à Jeedom de s'éteindre}}
 </div>
 
+<div class="alert alert-info mod_actionValue_selDescription jeedom_reboot" style="display:none;">
+    {{Envoi l'ordre à Jeedom de redémarrer}}
+</div>
+
 <div class="alert alert-info mod_actionValue_selDescription scenario_return" style="display:none;">
     {{Retourne un texte ou une valeur pour une interaction par exemple}}
 </div>
@@ -96,6 +108,15 @@ if (!isConnect()) {
 <div class="alert alert-info mod_actionValue_selDescription remove_inat" style="display:none;">
     {{Permet de supprimer la programmation de tous les blocs DANS et A du scénario}}
 </div>
+
+<div class="alert alert-info mod_actionValue_selDescription event" style="display:none;">
+    {{Permet de pousser une valeur dans une commande de type information de maniere arbitraire}}
+</div>
+
+<div class="alert alert-info mod_actionValue_selDescription tag" style="display:none;">
+    {{Permets d'ajouter/modifier un tag (le tag n'existe que pendant l'execution en cours du scénario à la difference des variables qui survive à la fin du scénario)}}
+</div>
+
 <script>
     $('#mod_actionValue_sel').on('change',function(){
       var value = $(this).value();

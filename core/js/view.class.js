@@ -77,6 +77,7 @@ jeedom.view.toHtml = function (_params) {
         action: "get",
         id: ($.isArray(_params.id)) ? json_encode(_params.id) : _params.id,
         version: _params.version,
+        html : true,
     };
     $.ajax(paramsAJAX);
 }
@@ -105,7 +106,7 @@ jeedom.view.handleViewAjax = function (_params) {
             for (var j in viewZone.viewData) {
                 var viewData = viewZone.viewData[j];
                 var configuration = json_encode(viewData.configuration);
-                result.html += 'jeedom.history.drawChart({cmd_id : ' + viewData.link_id + ',el : "' + div_id + '",dateRange : "' + viewZone.configuration.dateRange + '",option : jQuery.parseJSON("' + configuration.replace(/\"/g, "\\\"") + '")});';
+                result.html += 'jeedom.history.drawChart({noError:true,cmd_id : ' + viewData.link_id + ',el : "' + div_id + '",dateRange : "' + viewZone.configuration.dateRange + '",option : jQuery.parseJSON("' + configuration.replace(/\"/g, "\\\"") + '")});';
             }
             result.html += '</script>';
             result.html += '</div>';
@@ -213,6 +214,26 @@ jeedom.view.setOrder = function(_params) {
     paramsAJAX.data = {
         action: 'setOrder',
         views: json_encode(_params.views)
+    };
+    $.ajax(paramsAJAX);
+};
+
+
+jeedom.view.removeImage = function (_params) {
+    var paramsRequired = ['id'];
+    var paramsSpecifics = {};
+    try {
+        jeedom.private.checkParamsRequired(_params || {}, paramsRequired);
+    } catch (e) {
+        (_params.error || paramsSpecifics.error || jeedom.private.default_params.error)(e);
+        return;
+    }
+    var params = $.extend({}, jeedom.private.default_params, paramsSpecifics, _params || {});
+    var paramsAJAX = jeedom.private.getParamsAJAX(params);
+    paramsAJAX.url = 'core/ajax/view.ajax.php';
+    paramsAJAX.data = {
+        action: 'removeImage',
+        id: _params.id
     };
     $.ajax(paramsAJAX);
 };

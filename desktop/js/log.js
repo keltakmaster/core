@@ -22,7 +22,7 @@
   $(".li_log").removeClass('active');
   $(this).addClass('active');
   $('#bt_globalLogStopStart').removeClass('btn-success').addClass('btn-warning');
-  $('#bt_globalLogStopStart').html('<i class="fa fa-pause"></i> {{Pause}}');
+  $('#bt_globalLogStopStart').html('<i class="fas fa-pause"></i> {{Pause}}');
   $('#bt_globalLogStopStart').attr('data-state',1);
   jeedom.log.autoupdate({
     log : $(this).attr('data-log'),
@@ -35,6 +35,14 @@
  $("#bt_clearLog").on('click', function(event) {
   jeedom.log.clear({
     log : $('.li_log.active').attr('data-log'),
+    success: function(data) {
+      $('.li_log.active a').html($('.li_log.active').attr('data-log') + ' (0 Ko)');
+      $('.li_log.active i').removeClass().addClass('fa fa-check');
+      $('.li_log.active i').css('color','green');
+      if($('#bt_globalLogStopStart').attr('data-state') == 0){
+        $('#bt_globalLogStopStart').click();
+      }
+    }
   });
 });
 
@@ -42,32 +50,22 @@
   jeedom.log.remove({
     log : $('.li_log.active').attr('data-log'),
     success: function(data) {
-       loadPage('index.php?v=d&p=log');
-    }
-  });
+     loadPage('index.php?v=d&p=log');
+   }
+ });
 });
 
  $("#bt_removeAllLog").on('click', function(event) {
   bootbox.confirm("{{Etes-vous sûr de vouloir supprimer tous les logs ?}}", function(result) {
    if (result) {
-    $.ajax({
-      type: "POST", 
-      url: "core/ajax/log.ajax.php", 
-      data: {
-       action: "removeAll",
-     },
-     dataType: 'json',
-     error: function(request, status, error) {
-       handleAjaxError(request, status, error);
+    jeedom.log.removeAll({
+      error: function (error) {
+       $('#div_alertError').showAlert({message: error.message, level: 'danger'});
      },
      success: function(data) {
-      if (data.state != 'ok') {
-       $('#div_alertError').showAlert({message: data.result, level: 'danger'});
-       return;
-     }
-     loadPage('index.php?v=d&p=log');
-   }
- });
+      loadPage('index.php?v=d&p=log');
+    }
+  });
   }
 });
 });
