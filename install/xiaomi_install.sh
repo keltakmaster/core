@@ -71,7 +71,7 @@ else
   if [[ $arch != "aarch64" && $arch != "armv6l" ]]
   then
     echo "Utilisation du dÃ©pot officiel"
-    curl -sL https://deb.nodesource.com/setup_5.x |  -E bash -
+    curl -sL https://deb.nodesource.com/setup_5.x | bash -
      apt-get install -y nodejs
   fi
 
