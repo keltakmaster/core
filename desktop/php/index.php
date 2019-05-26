@@ -26,7 +26,7 @@ if (isConnect()) {
 if (init('rescue', 0) == 1) {
 	$homeLink = 'index.php?v=d&p=system&rescue=1';
 }
-$title = 'Jeedom';
+$title = config::byKey('product_name');
 if (init('p') == '' && isConnect()) {
 	redirect($homeLink);
 }
@@ -56,7 +56,7 @@ if (init('rescue', 0) == 0) {
 			foreach ($category as $pluginList) {
 				if ($pluginList->getId() == init('m')) {
 					$plugin = $pluginList;
-					$title = $plugin->getName() . ' - Jeedom';
+					$title = $plugin->getName() . ' - '.config::byKey('product_name');
 				}
 				$plugin_menu .= '<li style="padding-right:10px"><a href="index.php?v=d&m=' . $pluginList->getId() . '&p=' . $pluginList->getIndex() . '"><img class="img-responsive" style="width : 20px;display:inline-block;" src="' . $pluginList->getPathImgIcon() . '" /> ' . $pluginList->getName() . '</a></li>';
 				if ($pluginList->getDisplay() != '' && config::byKey('displayDesktopPanel', $pluginList->getId(), 0) != 0) {
@@ -85,7 +85,8 @@ if (init('rescue', 0) == 0) {
 	<meta name="apple-mobile-web-app-status-bar-style" content="black">
 	<script>
 	var clientDatetime = new Date();
-	var clientServerDiffDatetime = (<?php echo strtotime('now'); ?> * 1000) - clientDatetime.getTime();
+	var clientServerDiffDatetime = (<?php echo microtime(TRUE); ?> * 1000) - clientDatetime.getTime();
+	var serverTZoffsetMin = <?php echo getTZoffsetMin() ?>;
 	var serverDatetime = <?php echo getmicrotime(); ?>;
 	</script>
 	<?php
@@ -175,6 +176,7 @@ if (init('rescue', 0) == 0) {
 	include_file('3rdparty', 'autosize/autosize.min', 'js');
 	include_file('3rdparty', 'animate/animate', 'css');
 	include_file('3rdparty', 'animate/animate', 'js');
+    include_file('desktop', 'future', 'css');
 	if (init('rescue', 0) == 0 && $configs['enableCustomCss'] == 1) {
 		if (file_exists(__DIR__ . '/../custom/custom.css')) {
 			include_file('desktop', '', 'custom.css');

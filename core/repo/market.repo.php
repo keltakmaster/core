@@ -62,7 +62,7 @@ class repo_market {
 			'cloud::backup::fullfrequency' => array(
 				'name' => '[Backup cloud] Fréquence backup full',
 				'type' => 'select',
-				'values' => array('1D' => 'Toutes les jours', '1W' => 'Toutes les semaines', '1M' => 'Toutes les mois'),
+				'values' => array('1D' => 'Chaque jour', '1W' => 'Chaque semaine', '1M' => 'Chaque mois'),
 			),
 		),
 		'parameters_for_add' => array(
@@ -196,6 +196,16 @@ class repo_market {
 	
 	/*     * ***********************BACKUP*************************** */
 	
+	public static function backup_install(){
+		if (exec('which duplicity | wc -l') == 0) {
+			try {
+				com_shell::execute('sudo apt-get -y install duplicity');
+			} catch (\Exception $e) {
+				
+			}
+		}
+	}
+	
 	public static function backup_createFolderIsNotExist() {
 		$client = new Sabre\DAV\Client(array(
 			'baseUri' => 'https://' . config::byKey('market::backupServer'),
@@ -226,9 +236,12 @@ class repo_market {
 		if (config::byKey('market::cloud::backup::password') == '') {
 			throw new Exception(__('Vous devez obligatoirement avoir un mot de passe pour le backup cloud', __FILE__));
 		}
-		shell_exec(system::getCmdSudo() . ' rm -rf /tmp/duplicity-*-tempdir');
 		self::backup_createFolderIsNotExist();
+		self::backup_install();
 		$base_dir = realpath(__DIR__ . '/../../');
+		if(!file_exists($base_dir . '/tmp')){
+			mkdir($base_dir . '/tmp');
+		}
 		$excludes = array(
 			$base_dir . '/tmp',
 			$base_dir . '/log',
@@ -253,6 +266,7 @@ class repo_market {
 		}
 		$cmd .= ' --num-retries 2';
 		$cmd .= ' --ssl-no-check-certificate';
+		$cmd .= ' --tempdir '.$base_dir . '/tmp';
 		$cmd .= ' ' . $base_dir . '  "webdavs://' . config::byKey('market::username') . ':' . config::byKey('market::backupPassword');
 		$cmd .= '@' . config::byKey('market::backupServer') . '/remote.php/webdav/' . config::byKey('market::cloud::backup::name').'"';
 		try {
@@ -265,11 +279,10 @@ class repo_market {
 				self::backup_clean();
 			}
 			system::kill('duplicity');
-			shell_exec(system::getCmdSudo() . ' rm -rf /tmp/duplicity-*-tempdir');
+			shell_exec(system::getCmdSudo() . ' rm -rf '.$base_dir . '/tmp/duplicity*');
 			shell_exec(system::getCmdSudo() . ' rm -rf ~/.cache/duplicity/*');
 			com_shell::execute($cmd);
 		}
-		shell_exec(system::getCmdSudo() . ' rm -rf /tmp/duplicity-*-tempdir');
 	}
 	
 	public static function backup_errorAnalyzed($_error) {
@@ -286,6 +299,7 @@ class repo_market {
 		if (config::byKey('market::cloud::backup::password') == '') {
 			return;
 		}
+		self::backup_install();
 		shell_exec(system::getCmdSudo() . ' rm -rf /tmp/duplicity-*-tempdir');
 		if ($_nb == null) {
 			$_nb = 0;
@@ -321,6 +335,7 @@ class repo_market {
 			return array();
 		}
 		self::backup_createFolderIsNotExist();
+		self::backup_install();
 		$return = array();
 		$cmd = system::getCmdSudo();
 		$cmd .= ' duplicity collection-status';
@@ -329,8 +344,12 @@ class repo_market {
 		$cmd .= ' --timeout 60';
 		$cmd .= ' "webdavs://' . config::byKey('market::username') . ':' . config::byKey('market::backupPassword');
 		$cmd .= '@' . config::byKey('market::backupServer') . '/remote.php/webdav/' . config::byKey('market::cloud::backup::name').'"';
-		shell_exec(system::getCmdSudo() . ' rm -rf ~/.cache/duplicity/*');
-		$results = explode("\n", com_shell::execute($cmd));
+		try {
+			$results = explode("\n", com_shell::execute($cmd));
+		} catch (\Exception $e) {
+			shell_exec(system::getCmdSudo() . ' rm -rf ~/.cache/duplicity/*');
+			$results = explode("\n", com_shell::execute($cmd));
+		}
 		foreach ($results as $line) {
 			if (strpos($line, 'Full') === false && strpos($line, 'Incremental') === false && strpos($line, 'Complète') === false && strpos($line, 'Incrémentale') === false) {
 				continue;
@@ -352,6 +371,11 @@ class repo_market {
 		if (file_exists($restore_dir)) {
 			com_shell::execute(system::getCmdSudo() . ' rm -rf ' . $restore_dir);
 		}
+		self::backup_install();
+		$base_dir =  '/usr/jeedom_duplicity';
+		if(!file_exists($base_dir)){
+			mkdir($base_dir);
+		}
 		mkdir($restore_dir);
 		$timestamp = strtotime(trim(str_replace(array('Full', 'Incremental'), '', $_backup)));
 		$backup_name = str_replace(' ', '_', 'backup-cloud-' . config::byKey('market::cloud::backup::name') . '-' . date("Y-m-d-H\hi", $timestamp) . '.tar.gz');
@@ -359,6 +383,7 @@ class repo_market {
 		$cmd .= ' duplicity --file-to-restore /';
 		$cmd .= ' --time ' . $timestamp;
 		$cmd .= ' --num-retries 1';
+		$cmd .= ' --tempdir '.$base_dir;
 		$cmd .= ' "webdavs://' . config::byKey('market::username') . ':' . config::byKey('market::backupPassword');
 		$cmd .= '@' . config::byKey('market::backupServer') . '/remote.php/webdav/' . config::byKey('market::cloud::backup::name').'"';
 		$cmd .= ' ' . $restore_dir;
@@ -370,7 +395,7 @@ class repo_market {
 			}
 			throw new Exception('[restore cloud] ' . $e->getMessage());
 		}
-		return;
+		shell_exec(system::getCmdSudo() . ' rm -rf '.$base_dir);
 		system('cd ' . $restore_dir . ';tar cfz "' . $backup_dir . '/' . $backup_name . '" . > /dev/null');
 		if (file_exists($restore_dir)) {
 			com_shell::execute(system::getCmdSudo() . ' rm -rf ' . $restore_dir);
